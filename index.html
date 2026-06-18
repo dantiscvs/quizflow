@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizFlow — Jak dobrze to znasz?</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --card: #1a1a22;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #43e97b;
+    --text: #f0f0f0;
+    --muted: #888;
+    --border: #2a2a36;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  .screen { display: none; width: 100%; max-width: 680px; }
+  .screen.active { display: flex; flex-direction: column; gap: 20px; }
+
+  .logo { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); text-align: center; font-weight: 600; margin-top: 24px; }
+  h1 { font-size: clamp(22px,5vw,30px); line-height: 1.25; text-align: center; }
+  .subtitle { color: var(--muted); text-align: center; font-size: 14px; line-height: 1.6; }
+
+  .search-wrap { position: relative; }
+  .search-input { width: 100%; background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px 12px 42px; color: var(--text); font-size: 14px; outline: none; transition: border-color .2s; }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; }
+
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 20px; padding: 6px 14px; cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; transition: all .15s; white-space: nowrap; }
+  .filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: #6c63ff15; }
+
+  .random-btn { background: linear-gradient(135deg, #6c63ff, #ff6584); border: none; border-radius: 12px; padding: 13px 20px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: .3px; }
+  .random-btn:hover { opacity: .88; transform: translateY(-1px); }
+
+  .cat-count { font-size: 12px; color: var(--muted); }
+
+  .categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .cat-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 16px 12px; cursor: pointer; transition: border-color .2s, transform .15s; text-align: center; color: var(--text); }
+  .cat-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .cat-btn .icon { font-size: 26px; margin-bottom: 7px; }
+  .cat-btn .cat-name { font-size: 12px; font-weight: 700; line-height: 1.3; }
+  .cat-btn .cat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .cat-btn .cat-group { display: inline-block; margin-top: 6px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); opacity: .7; }
+  .cat-btn.hidden { display: none; }
+
+  .quiz-header { display: flex; justify-content: space-between; align-items: center; }
+  .quiz-cat { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+
+  .timer-ring { position: relative; width: 52px; height: 52px; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-ring circle { fill: none; stroke: var(--border); stroke-width: 3.5; }
+  .timer-ring .progress { stroke: var(--accent); stroke-dasharray: 125.6; stroke-dashoffset: 0; stroke-linecap: round; transition: stroke .5s; }
+  .timer-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+
+  .riddle-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 16px; padding: 24px; }
+  .riddle-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .riddle-question { font-size: clamp(14px,3.5vw,17px); line-height: 1.55; white-space: pre-line; }
+  .code-block { background: #0d0d12; border: 1px solid #2a2a3a; border-radius: 10px; padding: 14px 18px; font-family: 'Cascadia Code','Fira Code','Courier New',monospace; font-size: 13px; color: #a8d8ff; margin: 14px 0 6px; overflow-x: auto; white-space: pre; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 16px; cursor: pointer; text-align: left; color: var(--text); font-size: 14px; line-height: 1.45; transition: border-color .15s, background .15s; }
+  .opt-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .opt-btn.correct { border-color: var(--green); background: #43e97b18; }
+  .opt-btn.wrong   { border-color: var(--accent2); background: #ff658418; }
+  .opt-btn:disabled { cursor: default; }
+  .opt-tag { display: inline-block; width: 22px; height: 22px; border-radius: 6px; background: var(--border); text-align: center; line-height: 22px; font-size: 11px; font-weight: 700; margin-right: 10px; }
+
+  .explanation { background: #1e2030; border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; padding: 14px 16px; font-size: 13px; line-height: 1.65; color: #ccc; display: none; }
+  .explanation.show { display: block; }
+  .explanation strong { color: var(--text); }
+
+  .result-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 20px; padding: 32px 28px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
+  .score-ring { position: relative; width: 120px; height: 120px; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring circle { fill: none; stroke-width: 8; }
+  .score-ring .bg { stroke: var(--border); }
+  .score-ring .fg { stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+  .score-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score-num .big { font-size: 34px; font-weight: 800; }
+  .score-num .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .verdict { font-size: 20px; font-weight: 700; }
+  .verdict-sub { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .result-detail { display: flex; gap: 16px; width: 100%; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; text-align: center; flex: 1; }
+  .stat .sv { font-size: 20px; font-weight: 700; }
+  .stat .sl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .action-row { display: flex; gap: 10px; width: 100%; }
+  .btn { flex: 1; padding: 13px; border-radius: 12px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s, transform .1s; }
+  .btn:hover { opacity: .88; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--card); border: 1.5px solid var(--border); color: var(--text); }
+  .share-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 18px; color: var(--text); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: border-color .15s; }
+  .share-btn:hover { border-color: var(--accent); }
+
+  @keyframes pop { 0%{transform:scale(.9);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .anim-pop { animation: pop .3s ease; }
+  .no-results { color: var(--muted); text-align: center; padding: 32px 0; font-size: 14px; }
+
+  @media(max-width:420px){
+    .categories { grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); }
+    .result-detail { gap: 10px; }
+    .filter-btn { font-size: 11px; padding: 5px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="screen-home" class="screen active">
+  <div class="logo">⚡ QuizFlow</div>
+  <div>
+    <h1>Jak dobrze to znasz?</h1>
+    <p class="subtitle" style="margin-top:8px">Jedna zagadka. Licznik startuje. Im szybciej — tym lepiej.</p>
+  </div>
+  <button class="random-btn" onclick="startRandom()">🎲 Losowa zagadka</button>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="search-input" type="text" placeholder="Szukaj kategorii..." oninput="filterCategories()">
+  </div>
+  <div class="filter-row" id="filter-row"></div>
+  <div><span class="cat-count" id="cat-count"></span></div>
+  <div class="categories" id="categories-grid"></div>
+</div>
+
+<div id="screen-quiz" class="screen">
+  <div class="quiz-header">
+    <span class="quiz-cat" id="quiz-cat-label"></span>
+    <div class="timer-ring">
+      <svg width="52" height="52" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="20"></circle>
+        <circle class="progress" id="timer-circle" cx="26" cy="26" r="20"></circle>
+      </svg>
+      <div class="timer-text" id="timer-text">0</div>
+    </div>
+  </div>
+  <div class="riddle-card anim-pop">
+    <div class="riddle-label">Zagadka</div>
+    <div class="riddle-question" id="riddle-question"></div>
+    <div class="code-block" id="riddle-code" style="display:none"></div>
+  </div>
+  <div class="options" id="options-list"></div>
+  <div class="explanation" id="explanation"></div>
+</div>
+
+<div id="screen-result" class="screen">
+  <div class="result-card anim-pop">
+    <div class="score-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle class="bg" cx="60" cy="60" r="50"></circle>
+        <circle class="fg" id="score-arc" cx="60" cy="60" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"></circle>
+      </svg>
+      <div class="score-num">
+        <div class="big" id="score-display">0</div>
+        <div class="lbl">punktow</div>
+      </div>
+    </div>
+    <div class="verdict" id="verdict-text"></div>
+    <div class="verdict-sub" id="verdict-sub"></div>
+    <div class="result-detail">
+      <div class="stat"><div class="sv" id="res-time">0s</div><div class="sl">sekund</div></div>
+      <div class="stat"><div class="sv" id="res-correct">-</div><div class="sl">odpowiedz</div></div>
+    </div>
+    <div class="action-row">
+      <button class="btn btn-ghost" onclick="backHome()">Kategorie</button>
+      <button class="btn btn-primary" onclick="retryQuiz()">Sprobuj jeszcze raz</button>
+    </div>
+    <div class="action-row" style="margin-top:-6px">
+      <button class="btn btn-ghost" onclick="startRandom()" style="flex:1">Losowa zagadka</button>
+    </div>
+    <button class="share-btn" onclick="shareResult()"><span>Link</span> Skopiuj wynik</button>
+  </div>
+</div>
+
+<script>
+const GROUPS = {
+  tech:   'Tech',
+  sheets: 'Arkusze',
+  mkt:    'Marketing',
+  hr:     'HR',
+  biz:    'Biznes',
+  design: 'Design',
+  data:   'Dane & AI',
+  prod:   'Produktywnosc',
+  soft:   'Soft skills',
+};
+
+const RIDDLES = {
+  python: {
+    icon:'P', name:'Python', sub:'Jednolinijkowce', group:'tech',
+    label:'Python',
+    question:'Co zwroci ten kod?',
+    code:'words = ["data", "is", "power"]\nprint(" ".join(reversed(words)))',
+    options:[
+      {text:'"power is data"',correct:true},
+      {text:'"data is power"',correct:false},
+      {text:'"rewop si atad"',correct:false},
+      {text:'TypeError — reversed() nie dziala na listach',correct:false},
+    ],
+    explanation:'<strong>reversed(words)</strong> zwraca iterator od konca listy. <strong>" ".join(...)</strong> scala elementy spacją. Wynik: "power is data". reversed() działa na listach, tuple i każdej sekwencji.',
+  },
+  sql: {
+    icon:'S', name:'SQL', sub:'Zapytania', group:'tech',
+    label:'SQL',
+    question:'Jakie wiersze zwroci to zapytanie?',
+    code:'SELECT name, salary\nFROM employees\nWHERE salary > (\n  SELECT AVG(salary) FROM employees\n);',
+    options:[
+      {text:'Pracownicy zarabiajacy powyzej sredniej w firmie',correct:true},
+      {text:'Pracownicy z maksymalnym wynagrodzeniem',correct:false},
+      {text:'Wszyscy pracownicy posortowani po salary',correct:false},
+      {text:'Pracownicy z salary rownym sredniej',correct:false},
+    ],
+    explanation:'Podzapytanie <strong>SELECT AVG(salary)</strong> oblicza jedną wartość — sredniąą firmy. Zewnętrzne zapytanie filtruje tylko tych, którzy zarabiają powyzej niej.',
+  },
+  js: {
+    icon:'J', name:'JavaScript', sub:'ES6+ pulapki', group:'tech',
+    label:'JavaScript',
+    question:'Co wyswietli ten kod?',
+    code:'console.log(typeof null)',
+    options:[
+      {text:'"object"',correct:true},
+      {text:'"null"',correct:false},
+      {text:'"undefined"',correct:false},
+      {text:'"boolean"',correct:false},
+    ],
+    explanation:'<strong>typeof null === "object"</strong> to slynny bug JavaScript z 1995 roku, który nigdy nie zostal naprawiony ze wzgledu na kompatybilnosc wsteczna. Zawsze sprawdzaj przez <strong>=== null</strong>.',
+  },
+  ts: {
+    icon:'T', name:'TypeScript', sub:'Typy i generyki', group:'tech',
+    label:'TypeScript',
+    question:'Jaki bedzie typ zmiennej Keys?',
+    code:'type Keys = keyof { name: string; age: number; active: boolean }',
+    options:[
+      {text:'"name" | "age" | "active"',correct:true},
+      {text:'string',correct:false},
+      {text:'{ name: string; age: number; active: boolean }',correct:false},
+      {text:'never',correct:false},
+    ],
+    explanation:'<strong>keyof</strong> pobiera union type ze wszystkich kluczy obiektu. Dla { name, age, active } wynik to literal type <strong>"name" | "age" | "active"</strong>. To podstawa type-safe code w TypeScript.',
+  },
+  react: {
+    icon:'R', name:'React', sub:'Hooki', group:'tech',
+    label:'React',
+    question:'Kiedy uruchomi sie ten useEffect?',
+    code:'useEffect(() => {\n  fetchData();\n}, []);',
+    options:[
+      {text:'Dokladnie raz, po pierwszym renderze komponentu',correct:true},
+      {text:'Po kazdym rerenderze komponentu',correct:false},
+      {text:'Nigdy — pusta tablica wylacza efekt',correct:false},
+      {text:'Przed pierwszym renderem (synchronicznie)',correct:false},
+    ],
+    explanation:'<strong>useEffect z []</strong> odpowiada componentDidMount — uruchamia sie raz po zamontowaniu. Bez tablicy = po kazdym renderze. Z wartosciami w tablicy = gdy te wartosci sie zmienia.',
+  },
+  git: {
+    icon:'G', name:'Git', sub:'Komendy', group:'tech',
+    label:'Git',
+    question:'Co robi ta komenda?',
+    code:'git stash pop',
+    options:[
+      {text:'Przywraca ostatnie zmiany ze stosu stash i usuwa je stamtad',correct:true},
+      {text:'Trwale usuwa wszystkie zapisane stashe',correct:false},
+      {text:'Tworzy nowy branch ze stasha',correct:false},
+      {text:'Wyswietla liste wszystkich stashy',correct:false},
+    ],
+    explanation:'<strong>git stash pop</strong> = git stash apply + git stash drop. Przywraca zmiany z wierzcholka stosu i usuwa je. Alternatywa: <strong>git stash apply</strong> przywraca ale zostawia w stosie.',
+  },
+  regex: {
+    icon:'/', name:'Regex', sub:'Wzorce', group:'tech',
+    label:'Wyrazenia regularne',
+    question:'Co pasuje do wzorca?',
+    code:'^\\d{2}-\\d{3}$',
+    options:[
+      {text:'Polski kod pocztowy np. 00-001',correct:true},
+      {text:'Adres email',correct:false},
+      {text:'Numer telefonu w formacie +48 xxx',correct:false},
+      {text:'Data w formacie DD-MM-YYYY',correct:false},
+    ],
+    explanation:'<strong>^</strong> i <strong>$</strong> zakotwiczaja do poczatku/konca. <strong>\\d{2}</strong> = dokladnie 2 cyfry, <strong>-</strong> = myslnik, <strong>\\d{3}</strong> = 3 cyfry. Razem pasuje tylko format xx-xxx jak kody pocztowe.',
+  },
+  bash: {
+    icon:'$', name:'Bash / Linux', sub:'Terminal', group:'tech',
+    label:'Bash / Linux',
+    question:'Co robi ta komenda?',
+    code:'grep -r "TODO" . --include="*.js"',
+    options:[
+      {text:'Rekurencyjnie szuka "TODO" we wszystkich plikach .js',correct:true},
+      {text:'Usuwa wszystkie komentarze TODO z plikow JS',correct:false},
+      {text:'Liczy wystapienia TODO w katalogu',correct:false},
+      {text:'Zamienia TODO na DONE w plikach JS',correct:false},
+    ],
+    explanation:'<strong>grep -r</strong> = rekurencyjnie. <strong>"TODO"</strong> = szukany wzorzec. <strong>.</strong> = biezacy katalog. <strong>--include="*.js"</strong> = tylko pliki JS. Wynik: lista plikow i linii z TODO.',
+  },
+  docker: {
+    icon:'D', name:'Docker', sub:'Kontenery', group:'tech',
+    label:'Docker',
+    question:'Co robi ta instrukcja w Dockerfile?',
+    code:'COPY . .',
+    options:[
+      {text:'Kopiuje wszystkie pliki z hosta do biezacego katalogu w kontenerze',correct:true},
+      {text:'Duplikuje warstwe obrazu dla cache',correct:false},
+      {text:'Synchronizuje zmiany z wolumenu',correct:false},
+      {text:'Blad — COPY wymaga podania konkretnej sciezki',correct:false},
+    ],
+    explanation:'<strong>COPY [src] [dest]</strong>: pierwszy <strong>.</strong> to katalog kontekstu budowania (host), drugi <strong>.</strong> to WORKDIR w kontenerze. Uzywaj <strong>.dockerignore</strong> by wykluczyc node_modules i .git.',
+  },
+  css: {
+    icon:'C', name:'CSS', sub:'Layout & selektory', group:'tech',
+    label:'CSS',
+    question:'Co robi ta deklaracja?',
+    code:'display: flex;\njustify-content: space-between;',
+    options:[
+      {text:'Elementy na obu koncach, reszta rowniomiernie rozlozona',correct:true},
+      {text:'Wszystkie elementy wysrodkowane',correct:false},
+      {text:'Elementy skupione po lewej z rownymi odstepami',correct:false},
+      {text:'Elementy rozciagniete na pelna szerokosc',correct:false},
+    ],
+    explanation:'<strong>space-between</strong>: pierwszy element przy lewej krawedzi, ostatni przy prawej, reszta rownomiernie miedzy nimi. Inne wartosci: center, flex-start, flex-end, space-around.',
+  },
+  http: {
+    icon:'H', name:'HTTP', sub:'Statusy & protokol', group:'tech',
+    label:'HTTP',
+    question:'Co oznacza status HTTP 429?',
+    options:[
+      {text:'Too Many Requests — przekroczono limit zadan (rate limiting)',correct:true},
+      {text:'Payment Required — wymagana platnosc',correct:false},
+      {text:'Request Timeout — zadanie trwalo za dlugo',correct:false},
+      {text:'Unauthorized — brak autoryzacji',correct:false},
+    ],
+    explanation:'<strong>429 Too Many Requests</strong> to odpowiedz rate limitingu. Serwer moze zwrocic naglowek <strong>Retry-After</strong> z czasem oczekiwania. Zawsze obsluguj 429 z exponential backoff.',
+  },
+  algorithms: {
+    icon:'A', name:'Algorytmy', sub:'Zlozonosc', group:'tech',
+    label:'Algorytmy',
+    question:'Jaka jest zlozonosc czasowa wyszukiwania binarnego?',
+    options:[
+      {text:'O(log n)',correct:true},
+      {text:'O(n)',correct:false},
+      {text:'O(n squared)',correct:false},
+      {text:'O(1)',correct:false},
+    ],
+    explanation:'Wyszukiwanie binarne za kazdym krokiem <strong>dzieli przestrzen poszukiwan na pol</strong> — stad O(log n). Wymaga posortowanej tablicy. Dla 1 mln elementow: max ~20 porownań zamiast 1 000 000.',
+  },
+  graphql: {
+    icon:'Q', name:'GraphQL', sub:'API', group:'tech',
+    label:'GraphQL',
+    question:'Czym rozni sie Query od Mutation w GraphQL?',
+    options:[
+      {text:'Query = odczyt danych, Mutation = modyfikacja danych',correct:true},
+      {text:'Query jest synchroniczne, Mutation asynchroniczne',correct:false},
+      {text:'Query zwraca jeden obiekt, Mutation liste',correct:false},
+      {text:'Nie ma roznicy — to tylko konwencja nazewnicza',correct:false},
+    ],
+    explanation:'<strong>Query</strong> sluzy do pobierania danych (odpowiednik GET). <strong>Mutation</strong> do tworzenia, aktualizacji i usuwania (POST/PUT/DELETE). Queries moga byc wykonywane rownolegle, Mutations sa serializowane.',
+  },
+  vscode: {
+    icon:'V', name:'VS Code', sub:'Skroty', group:'tech',
+    label:'VS Code',
+    question:'Co robi skrot Ctrl+Shift+P?',
+    options:[
+      {text:'Otwiera Command Palette — wyszukiwarke wszystkich komend',correct:true},
+      {text:'Formatuje kod w aktywnym pliku',correct:false},
+      {text:'Otwiera terminal zintegrowany',correct:false},
+      {text:'Zamyka aktywny panel',correct:false},
+    ],
+    explanation:'<strong>Command Palette</strong> to serce VS Code. Mozesz stad uruchamiac dowolna komende bez znajomosci skrotu. Wpisz > by szukac komend, @ by przejsc do symbolu, : by przejsc do linii.',
+  },
+  nodejs: {
+    icon:'N', name:'Node.js', sub:'Runtime', group:'tech',
+    label:'Node.js',
+    question:'Co robi process.nextTick(callback)?',
+    options:[
+      {text:'Wykonuje callback na koncu biezacej fazy event loop, przed I/O',correct:true},
+      {text:'Opoznia callback o jedna sekunde',correct:false},
+      {text:'Wykonuje callback w nowym watku',correct:false},
+      {text:'Planuje callback jak setTimeout(fn, 0)',correct:false},
+    ],
+    explanation:'<strong>process.nextTick</strong> jest szybszy niz setTimeout(0) — uruchamia sie przed nastepna iteracja event loop. Uzywaj ostrozonie — zbyt duzo wywolan moze zablokowac I/O.',
+  },
+  sheets: {
+    icon:'S', name:'Google Sheets', sub:'Formuly', group:'sheets',
+    label:'Google Sheets',
+    question:'Co robi ta formula?\n\nWklej w B2 obok tekstu w A2.',
+    code:'=IF(A2="","",COUNTA(SPLIT(A2," ")))',
+    options:[
+      {text:'Liczy slowa w komorce A2',correct:true},
+      {text:'Sprawdza czy A2 jest puste i zwraca 0',correct:false},
+      {text:'Usuwa spacje z tekstu w A2',correct:false},
+      {text:'Dzieli tekst z A2 na osobne wiersze',correct:false},
+    ],
+    explanation:'<strong>SPLIT(A2," ")</strong> rozbija tekst na tablice slow wg spacji, <strong>COUNTA()</strong> zlicza elementy. <strong>IF(A2="",...)</strong> zwraca pustke dla pustej komorki — bez tego bylby blad.',
+  },
+  excel: {
+    icon:'E', name:'Excel', sub:'Skroty & formuly', group:'sheets',
+    label:'Excel',
+    question:'Co robi klawisz F4 podczas edytowania formuly?',
+    code:'F4',
+    options:[
+      {text:'Przelacza miedzy $A$1, A$1, $A1, A1 (blokada adresu)',correct:true},
+      {text:'Powtarza ostatnia akcje formatowania',correct:false},
+      {text:'Otwiera okno Znajdz i zamien',correct:false},
+      {text:'Wstawia aktualna date',correct:false},
+    ],
+    explanation:'<strong>F4</strong> w trybie edycji formuly cyklicznie zmienia adresowanie: bezwzgledne ($A$1), mieszane wierszowo (A$1), mieszane kolumnowo ($A1) i wzgledne (A1). Poza edycja — powtarza ostatnia akcje.',
+  },
+  excel_adv: {
+    icon:'X', name:'Excel XLOOKUP', sub:'Formuly zaawansowane', group:'sheets',
+    label:'Excel XLOOKUP',
+    question:'Co zwroci ta formula gdy wartosc nie zostanie znaleziona?',
+    code:'=XLOOKUP(A2, B:B, C:C, "Nie znaleziono")',
+    options:[
+      {text:'"Nie znaleziono" — czwarty argument to fallback',correct:true},
+      {text:'#N/A — blad braku wartosci',correct:false},
+      {text:'0 — wartosc domyslna',correct:false},
+      {text:'Pusty ciag — XLOOKUP zawsze zwraca string',correct:false},
+    ],
+    explanation:'<strong>XLOOKUP</strong> zastepuje VLOOKUP. Argument 4 to <strong>wartosc gdy brak</strong> — zastepuje IFERROR. Dziala w lewo, obsluguje tablice i zwraca zakresy.',
+  },
+  powerbi: {
+    icon:'B', name:'Power BI', sub:'DAX', group:'sheets',
+    label:'Power BI DAX',
+    question:'Do czego sluzy funkcja CALCULATE w DAX?',
+    options:[
+      {text:'Modyfikuje kontekst filtrowania dla wyrazenia',correct:true},
+      {text:'Wykonuje obliczenia matematyczne na kolumnie',correct:false},
+      {text:'Tworzy nowa tabele obliczeniowa',correct:false},
+      {text:'Oblicza sume warunkowa jak SUMIF w Excel',correct:false},
+    ],
+    explanation:'<strong>CALCULATE</strong> to najwazniejsza funkcja DAX. Ewaluuje wyrazenie w zmodyfikowanym kontekscie filtrowania. Np. CALCULATE(SUM(Sales), Region="PL") sumuje sprzedaz tylko dla Polski.',
+  },
+  powerpoint: {
+    icon:'P', name:'PowerPoint', sub:'Slide Master', group:'sheets',
+    label:'PowerPoint',
+    question:'Czym jest "Slide Master" w PowerPoint?',
+    options:[
+      {text:'Szablon bazowy kontrolujacy wyglad wszystkich slajdow naraz',correct:true},
+      {text:'Pierwszy slajd prezentacji pelniacy role tytulowej',correct:false},
+      {text:'Narzedzie do synchronizacji prezentacji w chmurze',correct:false},
+      {text:'Tryb prezentacji dla prelegenta z notatkami',correct:false},
+    ],
+    explanation:'<strong>Slide Master</strong> (Widok → Wzorzec slajdow) kontroluje czcionki, kolory, logo i uklad dla wszystkich slajdow. Zmiana tu = zmiana wszedzie. Klucz do spojnych prezentacji korporacyjnych.',
+  },
+  notion: {
+    icon:'N', name:'Notion', sub:'Bazy danych', group:'sheets',
+    label:'Notion',
+    question:'Co to jest "Relation" w bazie danych Notion?',
+    options:[
+      {text:'Polaczenie miedzy dwoma roznymi bazami danych w Notion',correct:true},
+      {text:'Widok relacyjny danych w formie tabeli przestawnej',correct:false},
+      {text:'Komentarz powiazany z konkretnym rekordem',correct:false},
+      {text:'Formula obliczana na podstawie innych pol',correct:false},
+    ],
+    explanation:'<strong>Relation</strong> pozwala linkowac rekordy miedzy bazami — np. Projekty, Zadania, Osoby. Uzupelnia go <strong>Rollup</strong>, ktory agreguje dane z powiazanych rekordow.',
+  },
+  looker: {
+    icon:'L', name:'Looker Studio', sub:'Wizualizacje', group:'sheets',
+    label:'Looker Studio',
+    question:'Czym jest "Dimension" w Looker Studio?',
+    options:[
+      {text:'Pole kategoryczne do grupowania danych (kraj, data, kategoria)',correct:true},
+      {text:'Wartosc liczbowa uzywana do obliczen i agregacji',correct:false},
+      {text:'Filtr globalny dzialajacy na calym raporcie',correct:false},
+      {text:'Wymiar wykresu — szerokosc lub wysokosc wizualizacji',correct:false},
+    ],
+    explanation:'<strong>Dimension</strong> (wymiar) grupuje dane — np. kraj, miesiac, kategoria. <strong>Metric</strong> (metryka) to liczby — obrot, sesje, konwersje. Kazdy wykres potrzebuje wymiaru i metryki.',
+  },
+  pivot: {
+    icon:'T', name:'Tabela przestawna', sub:'Pivot Table', group:'sheets',
+    label:'Tabela przestawna',
+    question:'Skrot do wstawiania tabeli przestawnej w Excel (Windows)?',
+    code:'Alt → N → V → T',
+    options:[
+      {text:'Otwiera kreator tabeli przestawnej',correct:true},
+      {text:'Odswiezا wszystkie tabele przestawne',correct:false},
+      {text:'Wstawia wykres przestawny',correct:false},
+      {text:'Nie istnieje — trzeba kliknac w menu Wstawianie',correct:false},
+    ],
+    explanation:'Sekwencja Alt → N (Insert) → V (PivotTable) → T (Table) wstawia tabele przestawna bez myszy. Tabele przestawne to must-have w analizie danych bez kodu.',
+  },
+  ga4: {
+    icon:'G', name:'Google Analytics 4', sub:'Metryki', group:'mkt',
+    label:'Google Analytics 4',
+    question:'Co to jest "Engagement Rate" w GA4 i co zastepuje?',
+    options:[
+      {text:'% sesji z 10s+, konwersja lub 2+ stronami — zastepuje Bounce Rate',correct:true},
+      {text:'% powracajacych uzytkownikow wzgledem nowych',correct:false},
+      {text:'Stosunek klikniec do wyswietlen reklam',correct:false},
+      {text:'Sredni czas sesji podzielony przez liczbe stron',correct:false},
+    ],
+    explanation:'W GA4 zniknal <strong>Bounce Rate</strong>. Sesja jest "engaged" jesli trwala 10s+, miala konwersje lub 2+ widoki. <strong>Engagement Rate = 100% - Bounce Rate</strong> (w nowym sensie).',
+  },
+  seo: {
+    icon:'S', name:'SEO', sub:'Optymalizacja', group:'mkt',
+    label:'SEO',
+    question:'Czym sa "Core Web Vitals" Google?',
+    options:[
+      {text:'Metryki UX: LCP (ladowanie), INP (interaktywnosc), CLS (stabilnosc)',correct:true},
+      {text:'Wskazniki techniczne: szybkosc serwera, czas DNS, SSL',correct:false},
+      {text:'Liczba linkow przychodzacych i ich autorytet',correct:false},
+      {text:'Trafnosc slow kluczowych wzgledem intencji uzytkownika',correct:false},
+    ],
+    explanation:'<strong>LCP</strong> (Largest Contentful Paint) < 2.5s, <strong>INP</strong> < 200ms, <strong>CLS</strong> < 0.1. Od 2021 roku sa czynnikiem rankingowym Google — bezposrednio wplywaja na SEO.',
+  },
+  sem: {
+    icon:'A', name:'Google Ads', sub:'SEM & Quality Score', group:'mkt',
+    label:'Google Ads Quality Score',
+    question:'Czym jest Quality Score w Google Ads?',
+    options:[
+      {text:'Ocena 1-10 trafnosci: CTR, dopasowanie reklamy i landing page',correct:true},
+      {text:'Budzet dzienny podzielony przez liczbe klikniec',correct:false},
+      {text:'Pozycja reklamy w wynikach wyszukiwania',correct:false},
+      {text:'Liczba konwersji podzielona przez liczbe wyswietlen',correct:false},
+    ],
+    explanation:'Wyzszy <strong>Quality Score</strong> = nizszy CPC i lepsza pozycja. Sklada sie z: oczekiwanego CTR, trafnosci reklamy i jakosci landing page. QS 10 moze oznaczac 50% nizsze CPC niz QS 5.',
+  },
+  email_mkt: {
+    icon:'@', name:'Email marketing', sub:'Dostarczalnosc', group:'mkt',
+    label:'Email marketing',
+    question:'Co to jest "double opt-in" i dlaczego ma znaczenie?',
+    options:[
+      {text:'Potwierdzenie zapisu mailem — wyzsza jakosc listy i dostarczalnosc',correct:true},
+      {text:'Wysylanie dwoch e-maili powitalnych do nowego subskrybenta',correct:false},
+      {text:'Wymog prawny RODO dla kazdej kampanii mailingowej',correct:false},
+      {text:'Technika A/B testowania subject line e-maila',correct:false},
+    ],
+    explanation:'<strong>Double opt-in</strong>: subskrybent klika w link weryfikacyjny. Efekt: mniej botow, wyzszy open rate, mniejsze ryzyko spam folder. Jednorazowo mniejsza lista — dlugoterminowo lepsza jakosc.',
+  },
+  growth: {
+    icon:'G', name:'Growth hacking', sub:'Eksperymenty', group:'mkt',
+    label:'Growth hacking',
+    question:'Co to jest "Aha moment" w growth hackingu?',
+    options:[
+      {text:'Chwila gdy uzytkownik po raz pierwszy odczuwa kluczowa wartosc produktu',correct:true},
+      {text:'Moment gdy startup osiaga product-market fit',correct:false},
+      {text:'Punkt infleksji na wykresie wzrostu uzytkownikow',correct:false},
+      {text:'Pierwsza udana kampania marketingowa produktu',correct:false},
+    ],
+    explanation:'Facebook: "7 znajomych w 10 dni". Slack: "2000 wiadomosci w zespole". <strong>Aha moment</strong> koreluje z retencja — trzeba go jak najszybciej dostarczyc nowemu uzytkownikowi.',
+  },
+  copy: {
+    icon:'C', name:'Copywriting', sub:'Modele', group:'mkt',
+    label:'Copywriting',
+    question:'Co oznacza model AIDA w copywritingu?',
+    options:[
+      {text:'Attention → Interest → Desire → Action',correct:true},
+      {text:'Audience → Insight → Data → Analytics',correct:false},
+      {text:'Awareness → Intent → Decision → Activation',correct:false},
+      {text:'Appeal → Impact → Depth → Achievement',correct:false},
+    ],
+    explanation:'<strong>AIDA</strong> to klasyczny lejek copywriterski z XIX wieku: przyciagnij uwage, wzbudz zainteresowanie, stworz pragnienie, wezwij do dzialania. Stosuj w landing pages, emailach i postach sprzedazowych.',
+  },
+  metrics_mkt: {
+    icon:'M', name:'Metryki marketingu', sub:'CTR, ROAS, CAC', group:'mkt',
+    label:'Metryki marketingowe',
+    question:'Jak obliczyc ROAS (Return on Ad Spend)?',
+    options:[
+      {text:'Przychod z reklam podzielony przez Koszt reklam',correct:true},
+      {text:'(Przychod - Koszt reklam) podzielony przez Koszt reklam razy 100%',correct:false},
+      {text:'Liczba konwersji podzielona przez Liczbe klikniec razy 100%',correct:false},
+      {text:'Koszt reklam podzielony przez Liczbe nowych klientow',correct:false},
+    ],
+    explanation:'<strong>ROAS = Przychod / Koszt reklam</strong>. ROAS 4x = 4 zl przychodu na 1 zl wydany. Break-even ROAS = 1 / marza. Dla marzy 25% musisz miec min. ROAS 4x zeby wyjsc na zero.',
+  },
+  linkedin_mkt: {
+    icon:'L', name:'LinkedIn Marketing', sub:'Organic & Ads', group:'mkt',
+    label:'LinkedIn Marketing',
+    question:'Jaki format tresci ma zazwyczaj najwyzszy zasieg organiczny na LinkedIn?',
+    options:[
+      {text:'Posty z dokumentami PDF / karuzele — generuja najwiecej interakcji',correct:true},
+      {text:'Posty z linkiem do zewnetrznej strony',correct:false},
+      {text:'Krotkie posty tylko tekstowe bez zadnych mediow',correct:false},
+      {text:'Filmy wideo dluzsze niz 5 minut',correct:false},
+    ],
+    explanation:'Algorytm LinkedIn penalizuje linki zewnetrzne. <strong>Dokumenty PDF / karuzele</strong> i posty natywne maja najwiekszy zasieg. Wideo dziala, ale musi byc natywne (nie YouTube).',
+  },
+  ab_testing: {
+    icon:'A', name:'Testy A/B', sub:'Statystyki', group:'mkt',
+    label:'Testy A/B',
+    question:'Co oznacza "statistical significance" p < 0.05 w tescie A/B?',
+    options:[
+      {text:'Jest < 5% szans, ze wynik jest dzielem przypadku',correct:true},
+      {text:'Wariant B jest o 5% lepszy od A',correct:false},
+      {text:'Test trwal co najmniej 5% zalozonego czasu',correct:false},
+      {text:'Proba testowa wynosi co najmniej 5% ruchu',correct:false},
+    ],
+    explanation:'<strong>p-value</strong> to prawdopodobienstwo, ze obserwujesz taki wynik gdy hipoteza zerowa (brak roznicy) jest prawdziwa. p < 0.05 = < 5% szans na falszywy wynik. Maly efekt moze byc istotny statystycznie przy duzej probie.',
+  },
+  content: {
+    icon:'C', name:'Content marketing', sub:'Strategia', group:'mkt',
+    label:'Content marketing',
+    question:'Co to jest "pillar page" w strategii content marketingu?',
+    options:[
+      {text:'Dluga strona pokrywajaca temat kompleksowo, linkujaca do artykulow klastrowych',correct:true},
+      {text:'Strona glowna serwisu z lista wszystkich artykulow',correct:false},
+      {text:'Pierwszy post na blogu wprowadzajacy marke',correct:false},
+      {text:'Landing page kampanii content marketingowej',correct:false},
+    ],
+    explanation:'Model <strong>topic cluster</strong>: pillar page = "ostateczny przewodnik". Cluster content = szczegolowe artykuly podtematow linkujace do pillara. Google nagradza te strukture jako sygnal autorytetu tematycznego.',
+  },
+  fb_ads: {
+    icon:'F', name:'Meta Ads', sub:'Facebook & Instagram', group:'mkt',
+    label:'Meta Ads',
+    question:'Co to jest "Lookalike Audience" na Meta Ads?',
+    options:[
+      {text:'Grupa podobna do Twoich klientow — Meta szuka wspolnych cech',correct:true},
+      {text:'Osoby, ktore widzialy reklame konkurencji',correct:false},
+      {text:'Uzytkownicy, ktorzy odwiedzili podobne strony',correct:false},
+      {text:'Duplikat istniejącej grupy odbiorcow do testow A/B',correct:false},
+    ],
+    explanation:'<strong>Lookalike</strong> bierze "seed audience" (lista klientow, pixelowy ruch) i szuka osob o podobnych cechach. 1% lookalike = najbardziej podobni. Jeden z najskuteczniejszych sposobow skalowania reklam.',
+  },
+  rekrutacja: {
+    icon:'R', name:'Rekrutacja', sub:'Procesy', group:'hr',
+    label:'Rekrutacja',
+    question:'Co to jest "structured interview" i dlaczego jest skuteczniejsze?',
+    options:[
+      {text:'Te same pytania dla kazdego kandydata — redukuje bias, zwieksza trafnosc',correct:true},
+      {text:'Rozmowa prowadzona przez panel kilku rekruterow jednoczesnie',correct:false},
+      {text:'Wywiad z wczesniej przeslanym kandydatowi pytaniami',correct:false},
+      {text:'Rozmowa podzielona na scisle okreslone bloki czasowe',correct:false},
+    ],
+    explanation:'Meta-analizy (Schmidt & Hunter): strukturalizowany wywiad ma trafnosc predykcyjna 0.51 vs 0.38 dla nieustrukturyzowanego. Te same pytania + skala oceny = mniej gut feeling, wiecej danych do porownania.',
+  },
+  employer_brand: {
+    icon:'E', name:'Employer branding', sub:'eNPS & EVP', group:'hr',
+    label:'Employer branding',
+    question:'Co to jest eNPS (Employee Net Promoter Score)?',
+    options:[
+      {text:'Miara lojalnosci pracownikow: "Jak polecilbys firme jako miejsce pracy?" (0-10)',correct:true},
+      {text:'Wynik oceny efektywnosci pracownika za rok',correct:false},
+      {text:'Wskaznik zaangazowania mierzony ankieta Gallupa',correct:false},
+      {text:'Procent pracownikow poleconych przez obecnych pracownikow',correct:false},
+    ],
+    explanation:'eNPS: Promotorzy (9-10) minus Krytycy (0-6). Zakres -100 do +100. Powyzej 0 = wiecej promotorow niz krytykow. Branża IT benchmark: ~30-40. Badaj co kwartal.',
+  },
+  interview: {
+    icon:'I', name:'Rozmowy kwalifikacyjne', sub:'Metoda STAR', group:'hr',
+    label:'Metoda STAR',
+    question:'Co oznacza akronim STAR w metodzie prowadzenia wywiadu?',
+    options:[
+      {text:'Situation → Task → Action → Result',correct:true},
+      {text:'Skill → Talent → Attitude → Relationship',correct:false},
+      {text:'Strategy → Target → Assessment → Review',correct:false},
+      {text:'Strength → Test → Achieve → Recognize',correct:false},
+    ],
+    explanation:'<strong>STAR</strong>: Opisz Sytuacje, Zadanie do wykonania, podjete Dzialanie i osiagniety Rezultat. Metoda behawioralna — przeszle zachowanie = najlepszy predyktor przyszlosci.',
+  },
+  onboarding: {
+    icon:'O', name:'Onboarding', sub:'Preboarding & integracja', group:'hr',
+    label:'Onboarding',
+    question:'Co to jest "preboarding" i kiedy sie zaczyna?',
+    options:[
+      {text:'Etap miedzy podpisaniem umowy a pierwszym dniem pracy',correct:true},
+      {text:'Szkolenie pracownika przed formalnym wdrozeniem do zespolu',correct:false},
+      {text:'Proces rekrutacji wewnetrznej przed nowym naborem',correct:false},
+      {text:'Ocena 30-dniowa nowego pracownika',correct:false},
+    ],
+    explanation:'Preboarding wypelnia "luke ofertowa". Dzialania: dostep do Slack/email, materialy o kulturze firmy, buddy program. Redukuje no-show i skraca czas do produktywnosci.',
+  },
+  hr_metrics: {
+    icon:'H', name:'Metryki HR', sub:'Turnover & Time-to-Fill', group:'hr',
+    label:'Metryki HR',
+    question:'Jak poprawnie oblicza sie "Voluntary Turnover Rate"?',
+    options:[
+      {text:'Dobrowolne odejscia podzielone przez Srednie zatrudnienie razy 100%',correct:true},
+      {text:'Wszystkie odejscia podzielone przez Zatrudnienie na koniec okresu razy 100%',correct:false},
+      {text:'(Odejscia - Nowi) podzielone przez Zatrudnienie na poczatek razy 100%',correct:false},
+      {text:'Odejscia z inicjatywy pracownika podzielone przez Odejscia ogolem razy 100%',correct:false},
+    ],
+    explanation:'<strong>Voluntary Turnover</strong> = tylko odejscia z inicjatywy pracownika podzielone przez srednie zatrudnienie. Bench IT: 13-20% rocznie. Wysoki voluntary turnover = sygnal problemow z managerami lub kultura.',
+  },
+  prawo_pracy: {
+    icon:'P', name:'Prawo pracy PL', sub:'Kodeks Pracy', group:'hr',
+    label:'Prawo pracy PL',
+    question:'Jaki jest okres wypowiedzenia przy 5+ latach pracy na umowie o prace w Polsce?',
+    options:[
+      {text:'3 miesiace',correct:true},
+      {text:'1 miesiac',correct:false},
+      {text:'2 miesiace',correct:false},
+      {text:'6 miesiecy',correct:false},
+    ],
+    explanation:'Art. 36 KP: < 6 miesiecy = 2 tygodnie, >= 6 miesiecy = 1 miesiac, >= 3 lata = <strong>3 miesiace</strong>. Przy zwolnieniu pracownik moze byc oddelegowany do domu (garden leave).',
+  },
+  linkedin_hr: {
+    icon:'B', name:'LinkedIn Sourcing', sub:'Boolean search', group:'hr',
+    label:'LinkedIn Sourcing',
+    question:'Co to jest "Boolean search" w rekrutacji?',
+    options:[
+      {text:'Technika laczaca slowa kluczowe z AND, OR, NOT do precyzyjnego wyszukiwania',correct:true},
+      {text:'Wyszukiwanie kandydatow przez algorytm AI LinkedIn',correct:false},
+      {text:'Metoda oceny CV przez zestaw pytan tak/nie',correct:false},
+      {text:'Filtrowanie kandydatow po lokalizacji i branzy',correct:false},
+    ],
+    explanation:'Boolean w LinkedIn: <strong>AND</strong> (oba terminy), <strong>OR</strong> (ktorykolwiek), <strong>NOT</strong> (wykluczenie), <strong>cudzyslow</strong> (dokladna fraza). Np.: ("product manager" OR "PM") AND (SaaS OR B2B) NOT junior.',
+  },
+  performance: {
+    icon:'P', name:'Oceny pracownicze', sub:'Performance review', group:'hr',
+    label:'Oceny pracownicze',
+    question:'Co to jest ocena "360 stopni"?',
+    options:[
+      {text:'Ocena zbierana od przelozonych, wspolpracownikow, podwladnych i klientow',correct:true},
+      {text:'Roczna ocena efektywnosci na skali 360 punktow',correct:false},
+      {text:'Samoocena pracownika porownana z ocena managera',correct:false},
+      {text:'Ciagly feedback w cyklu miesiecznym przez caly rok',correct:false},
+    ],
+    explanation:'<strong>360 stopni</strong> daje pelny obraz: przelozeni widza wyniki, peers widza wspolprace, podwladni widza przywodztwo, klienci widza serwis. Wyzwanie: anonimowsc vs. przydatnosc feedbacku.',
+  },
+  ats: {
+    icon:'A', name:'ATS', sub:'Systemy rekrutacyjne', group:'hr',
+    label:'ATS — Applicant Tracking System',
+    question:'Co robi system ATS w procesie rekrutacji?',
+    options:[
+      {text:'Zarzadza przeplywem kandydatow, CV i komunikacja w calym procesie',correct:true},
+      {text:'Automatycznie odrzuca kandydatow niespelniajacych kryteriow',correct:false},
+      {text:'Generuje oferty pracy i publikuje je na portalach',correct:false},
+      {text:'Ocenia CV przez AI i rankinguje kandydatow',correct:false},
+    ],
+    explanation:'ATS (Workable, Lever, Greenhouse) centralizuje: ogloszenia, aplikacje, komunikacje, pipeline, notatki, oferty. Ulatwia RODO i analityke (time-to-hire, source of hire).',
+  },
+  di: {
+    icon:'D', name:'Diversity & Inclusion', sub:'DEI', group:'hr',
+    label:'Diversity & Inclusion',
+    question:'Co to jest "unconscious bias" w rekrutacji?',
+    options:[
+      {text:'Nieuswiadomione uprzedzenia wplywajace na ocene kandydatow',correct:true},
+      {text:'Swiadoma dyskryminacja zakazana przez prawo pracy',correct:false},
+      {text:'Sklonnosc do wybierania kandydatow z najlepszymi CV',correct:false},
+      {text:'Blad techniczny systemu ATS przy przetwarzaniu CV',correct:false},
+    ],
+    explanation:'Najczestsze biasy: <strong>affinity bias</strong> (lubimy podobnych do siebie), <strong>halo/horn effect</strong>, <strong>confirmation bias</strong>. Przeciwdzialanie: blind CV, structured interviews, diverse hiring panels.',
+  },
+  startup_metrics: {
+    icon:'M', name:'Metryki startupow', sub:'MRR, ARR, Churn', group:'biz',
+    label:'Metryki startupow',
+    question:'Co to jest "Churn Rate" i dlaczego jest krytyczny dla SaaS?',
+    options:[
+      {text:'% klientow rezygnujacych w danym okresie — przeciekajace wiaderko wzrostu',correct:true},
+      {text:'Tempo wzrostu przychodow miesieczenie',correct:false},
+      {text:'Stosunek nowych klientow do utraconych',correct:false},
+      {text:'Koszt pozyskania klienta w danym miesiacu',correct:false},
+    ],
+    explanation:'Przy 5% miesiecznym churn tracisz 46% klientow rocznie. Przy 1% — tylko 11.4%. <strong>Churn = dziura w wiaderku</strong>: nawet swietna akwizycja nie pomoze przy wysokim churnie.',
+  },
+  okr: {
+    icon:'O', name:'OKR', sub:'Metodologia', group:'biz',
+    label:'OKR — Objectives & Key Results',
+    question:'Ile Key Results powinien miec jeden Objective?',
+    options:[
+      {text:'2-5 — mierzalnych i ambitnych, ale nie za duzo',correct:true},
+      {text:'Dowolnie — im wiecej KR tym lepiej mierzysz sukces',correct:false},
+      {text:'Dokladnie 3 — standard Google i Intel',correct:false},
+      {text:'1 — jeden jasny wynik na jeden cel',correct:false},
+    ],
+    explanation:'OKR: Objective = inspirujace, jakosciowe. Key Results = mierzalne, weryfikowalne (liczby!). 60-70% osiagniecia = sukces — KR maja byc ambitne. Zbyt wiele KR = brak fokusa.',
+  },
+  scrum: {
+    icon:'S', name:'Agile / Scrum', sub:'Ceremonies & role', group:'biz',
+    label:'Agile / Scrum',
+    question:'Jak dlugo trwa Sprint w Scrumie?',
+    options:[
+      {text:'1-4 tygodnie — stala dlugosc, najczesciej 2 tygodnie',correct:true},
+      {text:'Zawsze dokladnie 2 tygodnie — standard Scrum',correct:false},
+      {text:'Zalezy od zakresu — tyle ile potrzeba dla User Stories',correct:false},
+      {text:'Miesiac — zeby zmiesic jeden cykl miesieczny',correct:false},
+    ],
+    explanation:'Scrum Guide: Sprint to maksymalnie 4 tygodnie, stalej dlugosci. Najczesciej 2 tygodnie to kompromis miedzy feedbackiem a overhead ceremonii.',
+  },
+  kanban: {
+    icon:'K', name:'Kanban', sub:'Flow & WIP limits', group:'biz',
+    label:'Kanban',
+    question:'Co to jest "WIP limit" w Kanbanie?',
+    options:[
+      {text:'Maksymalna liczba zadan w jednej kolumnie — zapobiega przeciazeniu',correct:true},
+      {text:'Limit budzetu na sprint',correct:false},
+      {text:'Maksymalny czas zadania w jednej kolumnie',correct:false},
+      {text:'Minimalna liczba zadan do ukonczenia w tygodniu',correct:false},
+    ],
+    explanation:'<strong>WIP (Work in Progress) limit</strong>: "Stop starting, start finishing". Gdy kolumna osiaga limit, caly zespol pomaga ja oproznic. Redukuje multitasking, skraca cycle time.',
+  },
+  batna: {
+    icon:'N', name:'Negocjacje', sub:'BATNA & taktyki', group:'biz',
+    label:'Negocjacje',
+    question:'Co to jest BATNA?',
+    options:[
+      {text:'Best Alternative To a Negotiated Agreement — Twoja opcja jesli negocjacje upadna',correct:true},
+      {text:'Benchmark Analysis of Terms and Negotiation Agreements',correct:false},
+      {text:'Strategia negocjacyjna Harvard Business School',correct:false},
+      {text:'Minimalna akceptowalna kwota w negocjacjach cenowych',correct:false},
+    ],
+    explanation:'Silna <strong>BATNA</strong> = silna pozycja negocjacyjna. Przed negocjacjami: zdefiniuj swoja BATNA, oszacuj BATNA drugiej strony, ustal ZOPA (Zone of Possible Agreement).',
+  },
+  runway: {
+    icon:'F', name:'Finanse startupow', sub:'Runway & burn rate', group:'biz',
+    label:'Finanse startupow',
+    question:'Co to jest "runway" startupu?',
+    options:[
+      {text:'Czas dzialania przy obecnym cash i burn rate (w miesiacach)',correct:true},
+      {text:'Etap wzrostu miedzy rundami finansowania',correct:false},
+      {text:'Prognoza przychodow na nastepny rok',correct:false},
+      {text:'Plan wejscia na nowy rynek lub segment',correct:false},
+    ],
+    explanation:'<strong>Runway = Cash / Burn Rate</strong>. Zalecany runway: 12-18 miesiecy (zacznij fundraising gdy masz 6m). Zwieksz runway: ciecie kosztow, przyspieszenie przychodow lub nowa runda.',
+  },
+  pmf: {
+    icon:'P', name:'Product-Market Fit', sub:'Mierzenie', group:'biz',
+    label:'Product-Market Fit',
+    question:'Jak Sean Ellis proponowal mierzyc Product-Market Fit?',
+    options:[
+      {text:'% uzytkownikow "bardzo rozczarowanych" gdyby produkt zniknal — prog 40%',correct:true},
+      {text:'Net Promoter Score powyzej 50',correct:false},
+      {text:'Monthly Active Users rosnace >10% m/m przez 6 miesiecy',correct:false},
+      {text:'Retention Rate powyzej 40% po 30 dniach',correct:false},
+    ],
+    explanation:'Badanie Ellisa: jesli >40% odpowiada "bardzo rozczarowany" gdyby produkt zniknal — masz PMF. Ponizej 40% = skup sie na produkcie zanim skalojesz marketing.',
+  },
+  pricing: {
+    icon:'$', name:'Strategie cenowe', sub:'Pricing psychology', group:'biz',
+    label:'Strategie cenowe',
+    question:'Co to jest "price anchoring" w psychologii cen?',
+    options:[
+      {text:'Pierwsza podana cena wplywa na postrzeganie kolejnych ofert',correct:true},
+      {text:'Ustalanie ceny na podstawie kosztow plus marza',correct:false},
+      {text:'Dynamiczne zmiany cen w zaleznosci od popytu',correct:false},
+      {text:'Cena zrownana z cena lidera na rynku',correct:false},
+    ],
+    explanation:'Anchor efekt: pokaz najpierw najdrozszy plan (2000 zl) → srodkowy (400 zl) wydaje sie rozsdany. Stosuj w pricing page: 3 plany, srodkowy "Recommended".',
+  },
+  unit_econ: {
+    icon:'U', name:'Unit economics', sub:'LTV & CAC', group:'biz',
+    label:'Unit Economics',
+    question:'Jaki stosunek LTV:CAC uwaza sie za zdrowy dla startupu?',
+    options:[
+      {text:'3:1 lub wyzszy — 3 zl wartosci na 1 zl kosztu pozyskania',correct:true},
+      {text:'1:1 — break-even na poziomie klienta',correct:false},
+      {text:'10:1 — tylko taki ratio gwarantuje VC funding',correct:false},
+      {text:'Zalezy wylacznie od branzy — nie ma jednego standardu',correct:false},
+    ],
+    explanation:'<strong>LTV:CAC > 3x</strong> = inwestorzy sa szczesliwi. < 1x = tracisz na kazdym kliencie. LTV = ARPU * Gross Margin * (1/Churn). CAC = (Wydatki Marketing + Sales) / Nowi klienci.',
+  },
+  moscow: {
+    icon:'P', name:'Priorytetyzacja', sub:'MoSCoW & frameworks', group:'biz',
+    label:'Priorytetyzacja MoSCoW',
+    question:'Co oznacza skrot MoSCoW w zarzadzaniu produktem?',
+    options:[
+      {text:'Must have, Should have, Could have, Wont have',correct:true},
+      {text:'Minimum, Scope, Customer, Outcome, Work',correct:false},
+      {text:'Market, Operation, Scale, Cost, Workflow',correct:false},
+      {text:'Metoda rosyjskiej szkoly zarzadzania projektami',correct:false},
+    ],
+    explanation:'<strong>Must</strong> = krytyczne dla release. <strong>Should</strong> = wazne ale obejscie istnieje. <strong>Could</strong> = nice-to-have. <strong>Wont</strong> = swiadomie odrzucone teraz. Pomaga negocjowac zakres z interesariuszami.',
+  },
+  fundraising: {
+    icon:'V', name:'Fundraising', sub:'Rundy inwestycyjne', group:'biz',
+    label:'Fundraising',
+    question:'Co to jest "dilution" przy rundzie inwestycyjnej?',
+    options:[
+      {text:'Zmniejszenie % udzialow zalozycieli po emisji nowych akcji dla inwestorow',correct:true},
+      {text:'Obnizenie wyceny firmy miedzy rundami (down round)',correct:false},
+      {text:'Zmniejszenie liczby udzialowcow przez skup akcji',correct:false},
+      {text:'Utrata praw glosu przy przekroczeniu progu zadluzenia',correct:false},
+    ],
+    explanation:'Jesli masz 100% i sprzedajesz 20% inwestorowi — masz 80% (dilucja 20%). Dilucja nie jest zla jesli tort rosnie: 20% ze 100M > 100% z 1M. Walcz o <strong>anti-dilution provisions</strong>.',
+  },
+  vc: {
+    icon:'V', name:'Venture Capital', sub:'Terminy & rundy', group:'biz',
+    label:'Venture Capital',
+    question:'Co to jest "term sheet" w procesie inwestycyjnym?',
+    options:[
+      {text:'Niewiazacy dokument okreslajacy warunki inwestycji przed finalnymi umowami',correct:true},
+      {text:'Prawnie wiazaca umowa inwestycyjna podpisywana przez obie strony',correct:false},
+      {text:'Arkusz kalkulacyjny z prognozami finansowymi dla inwestorow',correct:false},
+      {text:'Dokument due diligence wymagany przez fundusz',correct:false},
+    ],
+    explanation:'Term sheet to <strong>LOI (Letter of Intent)</strong> — zwykle niewiazacy. Zawiera: wycene, kwote, typ akcji, board seats, liquidation preference, anti-dilution. Po term sheet: due diligence i finalne dokumenty.',
+  },
+  ux_research: {
+    icon:'U', name:'UX Research', sub:'Metody', group:'design',
+    label:'UX Research',
+    question:'Co to jest "affinity mapping" po badaniach uzytkownikow?',
+    options:[
+      {text:'Grupowanie obserwacji w klastry tematyczne na karteczkach',correct:true},
+      {text:'Mapa empatii przedstawiajaca perspektywe uzytkownika',correct:false},
+      {text:'Diagram pokazujacy affinizacje (lojalnosc) uzytkownikow',correct:false},
+      {text:'Analiza podobienstwa profili User Persona',correct:false},
+    ],
+    explanation:'Po wywiadach laduje sie z setkami notatek. <strong>Affinity mapping</strong>: kazda obserwacja na karteczce → grupowanie → klastry → tematy → insights. Narzedzia: FigJam, Miro, Mural.',
+  },
+  figma: {
+    icon:'F', name:'Figma', sub:'Skroty i komponenty', group:'design',
+    label:'Figma',
+    question:'Co robi skrot Ctrl+G w Figma?',
+    options:[
+      {text:'Grupuje zaznaczone elementy w jedna grupe',correct:true},
+      {text:'Otwiera Grid — siatke pomocnicza',correct:false},
+      {text:'Tworzy nowy komponent z zaznaczenia',correct:false},
+      {text:'Przelacza widok prototypu i designu',correct:false},
+    ],
+    explanation:'<strong>Ctrl+G</strong> = Group (Grupa). <strong>Ctrl+Alt+G</strong> = Frame — preferowane bo zachowuje autolayout. <strong>Ctrl+Alt+K</strong> = Komponent. Frames w Figma = div w HTML.',
+  },
+  design_thinking: {
+    icon:'D', name:'Design Thinking', sub:'Metodologia', group:'design',
+    label:'Design Thinking',
+    question:'Ile faz ma Design Thinking wg IDEO / Stanford d.school?',
+    options:[
+      {text:'5 faz: Empathize → Define → Ideate → Prototype → Test',correct:true},
+      {text:'3 fazy: Research → Design → Validate',correct:false},
+      {text:'4 fazy: Discover → Define → Develop → Deliver',correct:false},
+      {text:'6 faz z faza Launch na koncu',correct:false},
+    ],
+    explanation:'Model IDEO: <strong>Empathize</strong> (rozumiej uzytkownika), <strong>Define</strong> (problem statement), <strong>Ideate</strong> (generuj pomysly), <strong>Prototype</strong> (szybko buduj), <strong>Test</strong> (ucz sie). Proces nie jest liniowy.',
+  },
+  color: {
+    icon:'C', name:'Teoria koloru', sub:'Kontrast & dostepnosc', group:'design',
+    label:'Teoria koloru',
+    question:'Jaki minimalny kontrast tekstu do tla wymaga WCAG 2.1 poziom AA?',
+    options:[
+      {text:'4.5:1 dla tekstu normalnego, 3:1 dla duzego tekstu',correct:true},
+      {text:'3:1 dla wszystkich rozmiarow tekstu',correct:false},
+      {text:'7:1 — standard AA dla stron korporacyjnych',correct:false},
+      {text:'2:1 — wystarczy wyrazna roznica jasnosci',correct:false},
+    ],
+    explanation:'<strong>WCAG AA</strong>: tekst normalny = 4.5:1. Duzy tekst (powyzej 18pt lub 14pt bold) = 3:1. Sprawdzaj w: WebAIM Contrast Checker, Figma plugin Contrast.',
+  },
+  typography: {
+    icon:'T', name:'Typografia', sub:'Kerning & hierarchia', group:'design',
+    label:'Typografia',
+    question:'Co to jest "kerning" i czym rozni sie od "tracking"?',
+    options:[
+      {text:'Kerning = odstep miedzy konkretna para liter; tracking = globalne odstepy calego tekstu',correct:true},
+      {text:'Kerning = rozmiar liter; tracking = grubosc linii liter',correct:false},
+      {text:'Kerning = odstep miedzy wierszami; tracking = odstep miedzy slowami',correct:false},
+      {text:'Nie ma roznicy — to synonimy uzywane w roznych programach',correct:false},
+    ],
+    explanation:'<strong>Kerning</strong>: korekta odstepu miedzy konkretna para liter (np. "AV"). <strong>Tracking</strong>: rowniomierny odstep dla tekstu. <strong>Leading</strong>: odstep miedzy wierszami. Wszystkie trzy wplywaja na czytelnosc.',
+  },
+  design_system: {
+    icon:'D', name:'Design System', sub:'Tokeny & komponenty', group:'design',
+    label:'Design System',
+    question:'Co to jest "design token" w systemie projektowym?',
+    options:[
+      {text:'Nazwana zmienna przechowujaca wartosc designu (kolor, spacing, font)',correct:true},
+      {text:'Ikona lub ilustracja uzywana w systemie wizualnym',correct:false},
+      {text:'Licencja na uzycie komponentow z biblioteki',correct:false},
+      {text:'Unikalny identyfikator kazdego komponentu w bibliotece',correct:false},
+    ],
+    explanation:'Przyklad: <strong>--color-primary: #6c63ff</strong> to token. Tokens sa bridge miedzy designem a kodem — zmiana jednej wartosci propaguje sie wszedzie. Narzedzia: Tokens Studio, Style Dictionary.',
+  },
+  accessibility: {
+    icon:'A', name:'Dostepnosc WCAG', sub:'a11y', group:'design',
+    label:'Dostepnosc (a11y)',
+    question:'Do czego sluzy atrybut aria-label w HTML?',
+    options:[
+      {text:'Dostarcza tekstowy opis dla czytnikow ekranu gdy brak widocznej etykiety',correct:true},
+      {text:'Definiuje etykiete formularza widoczna dla wszystkich uzytkownikow',correct:false},
+      {text:'Ustawia tytul elementu pokazywany w tooltip po najechaniu',correct:false},
+      {text:'Opisuje element wylacznie dla robotow indeksujacych (SEO)',correct:false},
+    ],
+    explanation:'<strong>aria-label</strong> = etykieta dla screen readerow gdy brak widocznego tekstu. Priorytet: widoczny tekst > aria-labelledby > aria-label. Niezbedny dla przyciskow z samymi ikonami.',
+  },
+  ui_patterns: {
+    icon:'U', name:'Wzorce UI', sub:'Interakcja & UX', group:'design',
+    label:'Wzorce UI',
+    question:'Co to jest wzorzec "progressive disclosure"?',
+    options:[
+      {text:'Pokazuj tylko niezbedne info na start, szczegoly na zadanie — mniej cognitive load',correct:true},
+      {text:'Stopniowe wdrazanie nowego interfejsu dla segmentow uzytkownikow',correct:false},
+      {text:'Animowane przejscie miedzy ekranami aplikacji',correct:false},
+      {text:'Odkrywanie funkcji premium po upgradezie planu',correct:false},
+    ],
+    explanation:'<strong>Progressive disclosure</strong>: pokazuj tylko to co potrzebne. Przykłady: "Pokaz wiecej...", zaawansowane filtry schowane, wizard zamiast jednego dlugiego formularza. Redukuje overwhelm.',
+  },
+  prototyping: {
+    icon:'P', name:'Prototypowanie', sub:'Wireframes & fidelity', group:'design',
+    label:'Prototypowanie',
+    question:'Czym rozni sie "wireframe" od "mockup"?',
+    options:[
+      {text:'Wireframe = szkielet ukladu bez stylu; mockup = projekt z kolorami i typografia',correct:true},
+      {text:'Wireframe = wersja mobilna; mockup = wersja desktopowa',correct:false},
+      {text:'Wireframe = klikalna wersja; mockup = statyczne zdjecie',correct:false},
+      {text:'Wireframe = projekt zewnetrzny; mockup = projekt wewnetrzny',correct:false},
+    ],
+    explanation:'Fidelity: <strong>Wireframe</strong> (lo-fi, szkice) → <strong>Mockup</strong> (hi-fi, statyczny) → <strong>Prototype</strong> (interaktywny). Lo-fi testuje strukture, hi-fi testuje wyglad, prototype testuje flow.',
+  },
+  branding: {
+    icon:'B', name:'Branding', sub:'Tozsamosc marki', group:'design',
+    label:'Branding',
+    question:'Co to jest "brand positioning statement"?',
+    options:[
+      {text:'Wewnetrzne zdanie: dla kogo, co oferujesz, czym rozni sie od konkurencji',correct:true},
+      {text:'Tagline lub slogan uzywany w komunikacji zewnetrznej',correct:false},
+      {text:'Opis marki na stronie "O nas"',correct:false},
+      {text:'Analiza pozycji marki wzgledem konkurentow na mapie percepcji',correct:false},
+    ],
+    explanation:'Szablon: "Dla [target], [marka] jest jedyna [kategoria] ktora [korzysci], poniewaz [reason to believe]." Wewnetrzny kompas — nie slogan.',
+  },
+  pandas: {
+    icon:'P', name:'Python Pandas', sub:'DataFrame', group:'data',
+    label:'Python Pandas',
+    question:'Co zwroci to polecenie?',
+    code:"df.groupby('category')['sales'].sum()",
+    options:[
+      {text:'Suma sales dla kazdej unikatowej wartosci w kolumnie category',correct:true},
+      {text:'Liczba wierszy w kazdej kategorii',correct:false},
+      {text:'Srednia sprzedaz per kategoria',correct:false},
+      {text:'Blad — groupby wymaga podania agg() na koncu',correct:false},
+    ],
+    explanation:'<strong>groupby().sum()</strong> to jeden z podstawowych wzorcow Pandas. Zwraca Series z indeksem = kategorie. Alternatywa: .agg({"sales": "sum", "qty": "count"}) dla wielu agregacji.',
+  },
+  stats: {
+    icon:'S', name:'Statystyki', sub:'p-value & rozklady', group:'data',
+    label:'Statystyki',
+    question:'Co to jest "p-value"?',
+    options:[
+      {text:'Prawdopodobienstwo uzyskania takiego wyniku zakladajac hipoteze zerowa',correct:true},
+      {text:'Prawdopodobienstwo, ze hipoteza alternatywna jest prawdziwa',correct:false},
+      {text:'Procent wariancji wyjasnioney przez model',correct:false},
+      {text:'Poziom pewnosci, ze wynik sie powtorzy',correct:false},
+    ],
+    explanation:'p-value nie rowna sie "prawdopodobienstwo, ze masz racje". p < 0.05 = malo prawdopodobne, ze wynik to przypadek jezeli H0 jest prawdziwa. Zawsze podawaj tez effect size (Cohen\'s d).',
+  },
+  bigquery: {
+    icon:'B', name:'BigQuery', sub:'Partycjonowanie & koszty', group:'data',
+    label:'BigQuery',
+    question:'Po co stosuje sie "partitioned table" w BigQuery?',
+    options:[
+      {text:'Podzial po dacie przyspiesza zapytania i obniza koszty skanowania',correct:true},
+      {text:'Umozliwia rownolegle zapisy do tej samej tabeli',correct:false},
+      {text:'Szyfruje dane wrazliwe w wybranych kolumnach',correct:false},
+      {text:'Replikuje tabele miedzy regionami dla redundancji',correct:false},
+    ],
+    explanation:'BigQuery rozlicza za <strong>ilosc przeskanowanych danych</strong>. Partycjonowanie + warunek WHERE = skanujesz 1 dzien zamiast calej tabeli. Oszczednosci moga siegac 99%. Dodaj tez <strong>clustering</strong>.',
+  },
+  ml_basics: {
+    icon:'M', name:'Machine Learning', sub:'Podstawy', group:'data',
+    label:'Machine Learning',
+    question:'Co to jest "overfitting" modelu ML?',
+    options:[
+      {text:'Model perfekcyjnie uczy sie danych treningowych, ale slabo generalizuje',correct:true},
+      {text:'Model trenuje sie zbyt dlugo, zuzywajac za duzo pamieci',correct:false},
+      {text:'Model ma zbyt wiele hiperparametrow do optymalizacji',correct:false},
+      {text:'Dane treningowe zawieraja zbyt duzo outlieros',correct:false},
+    ],
+    explanation:'Overfitting = "nauczyl sie na pamiec". Objawy: wysoka accuracy na train, niska na test. Remedium: wiecej danych, regularyzacja (L1/L2), dropout, cross-validation, prostszy model.',
+  },
+  prompt_eng: {
+    icon:'A', name:'Prompt Engineering', sub:'LLM & AI', group:'data',
+    label:'Prompt Engineering',
+    question:'Co to jest "few-shot prompting"?',
+    options:[
+      {text:'Podawanie modelowi przykladow wejscie → wyjscie przed wlasciwym pytaniem',correct:true},
+      {text:'Promptowanie z bardzo krotkim, zwiezlym poleceniem',correct:false},
+      {text:'Generowanie wielu wariantow odpowiedzi dla tej samej instrukcji',correct:false},
+      {text:'Testowanie promptu na malej probie przed wdrozeniem',correct:false},
+    ],
+    explanation:'<strong>Zero-shot</strong>: tylko instrukcja. <strong>Few-shot</strong>: instrukcja + 2-5 przykladow. <strong>Chain-of-thought</strong>: model mysli krok po kroku. Few-shot drastycznie poprawia jakosc dla zadan klasyfikacyjnych.',
+  },
+  rag: {
+    icon:'R', name:'RAG & AI Agents', sub:'Architektura AI', group:'data',
+    label:'RAG — Retrieval-Augmented Generation',
+    question:'Co to jest RAG i jaki problem rozwiazuje?',
+    options:[
+      {text:'Laczy LLM z wyszukiwaniem zewnetrznej bazy wiedzy — redukuje halucynacje',correct:true},
+      {text:'Technika fine-tuningu modelu na danych domenowych firmy',correct:false},
+      {text:'Framework do budowania autonomicznych agentow AI',correct:false},
+      {text:'Metoda kompresji promptow dla oszczednosci tokenow',correct:false},
+    ],
+    explanation:'<strong>RAG</strong>: pytanie → wyszukaj trafne fragmenty w vector DB → dolacz do kontekstu → model odpowiada z wiedza. Rozwiazuje: stare dane treningowe, halucynacje, brak dostępu do firmowych dokumentow.',
+  },
+  data_viz: {
+    icon:'V', name:'Wizualizacja danych', sub:'Dobre praktyki', group:'data',
+    label:'Wizualizacja danych',
+    question:'Kiedy uzyc wykresu kolowego (pie chart)?',
+    options:[
+      {text:'Max 5-6 kategorii, udzialy sumuja sie do 100%, roznice sa wyrazne',correct:true},
+      {text:'Zawsze gdy chcesz pokazac proporcje miedzy kategoriami',correct:false},
+      {text:'Gdy masz dane czasowe do porownania procentowego',correct:false},
+      {text:'Pie chart jest przestarzaly — nigdy go nie uzywaj',correct:false},
+    ],
+    explanation:'Pie chart to zly wybor gdy: wiele kategorii (>5), podobne wartosci (oko zle ocenia katy). Lepsze alternatywy: bar chart (porownanie), stacked bar (kompozycja), waffle chart (proporcje).',
+  },
+  power_query: {
+    icon:'Q', name:'Power Query', sub:'ETL w Excel/Power BI', group:'data',
+    label:'Power Query',
+    question:'Do czego sluzy Power Query w Excel i Power BI?',
+    options:[
+      {text:'ETL bez kodu: import, czyszczenie i transformacja danych przed analiza',correct:true},
+      {text:'Tworzenie zaawansowanych wizualizacji i wykresow interaktywnych',correct:false},
+      {text:'Pisanie zapytan SQL do zewnetrznych baz danych',correct:false},
+      {text:'Automatyzacja raportow i harmonogramowanie odswiezania',correct:false},
+    ],
+    explanation:'<strong>Power Query</strong>: lacz zrodla (Excel, CSV, SQL, API), transformuj, zaladuj. Kazdy krok jest zapisany i odtwarzalny. "Odswiez" = caly pipeline od nowa. Zastepuje reczne kopiowanie na zawsze.',
+  },
+  data_story: {
+    icon:'S', name:'Data storytelling', sub:'Komunikacja danych', group:'data',
+    label:'Data Storytelling',
+    question:'Co to jest "data-ink ratio" wg Edwarda Tuftea?',
+    options:[
+      {text:'Proporcja atramentu uzytego na dane vs. calosc wykresu — im wyzszy, tym lepiej',correct:true},
+      {text:'Stosunek liczby wykresow do ilosci tekstu w raporcie',correct:false},
+      {text:'Jakosc danych mierzona % brakow i bledow',correct:false},
+      {text:'Liczba zrodel danych w jednej wizualizacji',correct:false},
+    ],
+    explanation:'Tufte: maksimalizuj <strong>data-ink ratio</strong> — usun gridlines, zbedne obramowania, 3D efekty. Kazda kropla "tuszu" powinna niesc informacje. Efekt: czytelniejszy wykres, mniej szumu.',
+  },
+  zapier: {
+    icon:'Z', name:'Zapier', sub:'Automatyzacja no-code', group:'prod',
+    label:'Zapier',
+    question:'Co to jest "Zap" w Zapier?',
+    options:[
+      {text:'Automatyzacja: Trigger (wyzwalacz) → jedna lub wiecej Actions (akcji)',correct:true},
+      {text:'Skrot klawiszowy do uruchamiania automatyzacji',correct:false},
+      {text:'API klucz do integracji z zewnetrznymi serwisami',correct:false},
+      {text:'Jedna warstwa logiki warunkowej w przeplywach pracy',correct:false},
+    ],
+    explanation:'Przykladowy Zap: nowy wiersz w Google Sheets (Trigger) → wyslij email przez Gmail (Action 1) → dodaj zadanie w Asanie (Action 2). Alternatywa: <strong>Make</strong> dla zlozonych scenariuszy z petlami.',
+  },
+  shortcuts_win: {
+    icon:'W', name:'Skroty Windows', sub:'Produktywnosc', group:'prod',
+    label:'Skroty Windows',
+    question:'Co robi skrot Win+V w Windows 10/11?',
+    options:[
+      {text:'Otwiera historie schowka — przechowuje wiele skopiowanych elementow',correct:true},
+      {text:'Wlacza wirtualny pulpit',correct:false},
+      {text:'Otwiera menedzera zadan',correct:false},
+      {text:'Wkleja ostatnio skopiowany element (jak Ctrl+V)',correct:false},
+    ],
+    explanation:'<strong>Win+V</strong> = historia schowka. Inne must-know: <strong>Win+Shift+S</strong> (screenshot fragmentu), <strong>Win+.</strong> (emoji picker), <strong>Win+D</strong> (pokaz pulpit).',
+  },
+  shortcuts_mac: {
+    icon:'M', name:'Skroty macOS', sub:'Produktywnosc', group:'prod',
+    label:'Skroty macOS',
+    question:'Co robi skrot Cmd+Space na Mac?',
+    options:[
+      {text:'Otwiera Spotlight — systemowa wyszukiwarke plikow, aplikacji i sieci',correct:true},
+      {text:'Przelacza miedzy ostatnimi dwoma aplikacjami',correct:false},
+      {text:'Otwiera LaunchPad z siatka aplikacji',correct:false},
+      {text:'Powiekszenie / pomniejszenie aktywnego okna',correct:false},
+    ],
+    explanation:'<strong>Spotlight (Cmd+Space)</strong>: otwieranie aplikacji, wyszukiwanie plikow, kalkulacje, konwersje walut. Must-know tez: <strong>Cmd+Tab</strong> (switcher), <strong>Cmd+Shift+3/4</strong> (screenshot).',
+  },
+  timeboxing: {
+    icon:'T', name:'Timeboxing', sub:'Zarzadzanie czasem', group:'prod',
+    label:'Timeboxing',
+    question:'Co to jest "timeboxing"?',
+    options:[
+      {text:'Przypisujesz staly blok czasu do zadania — koniec timeboxa = stop niezaleznie od wyniku',correct:true},
+      {text:'Technika szacowania czasu potrzebnego na zadanie',correct:false},
+      {text:'Przerwa regeneracyjna po intensywnej pracy',correct:false},
+      {text:'Dzielenie dnia na bloki tematyczne (deep work, admin, spotkania)',correct:false},
+    ],
+    explanation:'Timeboxing eliminuje Prawo Parkinsona: "praca rozszerza sie by wypelnic dostepny czas". Narzedzie: Toggl Track + bloki w kalendarzu. Elon Musk planuje dzien w 5-minutowych timeboksach.',
+  },
+  gtd: {
+    icon:'G', name:'GTD', sub:'Getting Things Done', group:'prod',
+    label:'GTD — Getting Things Done',
+    question:'Co to jest "Inbox" w metodologii GTD Davida Allena?',
+    options:[
+      {text:'Jedno miejsce zbierania WSZYSTKICH spraw zanim zostana przetworzone',correct:true},
+      {text:'Lista zadan na dzis posortowana priorytetem',correct:false},
+      {text:'Archiwum ukonczonych projektow i zadan',correct:false},
+      {text:'Skrzynka emailowa jako centrum zarzadzania zadaniami',correct:false},
+    ],
+    explanation:'GTD Inbox: wrzucasz WSZYSTKO — zadania, pomysly, zobowiazania — bez oceniania. Raz dziennie "processujesz": czy wymaga dzialania? Tak → Next Action lub Projekt. Cel: "mind like water".',
+  },
+  slack: {
+    icon:'S', name:'Slack', sub:'Skroty & workflow', group:'prod',
+    label:'Slack',
+    question:'Co robi skrot Ctrl+K w Slacku?',
+    options:[
+      {text:'Otwiera Quick Switcher — szybkie przejscie do kanalu lub osoby',correct:true},
+      {text:'Wstawia link w wiadomosci',correct:false},
+      {text:'Otwiera wyszukiwanie globalne po historii wiadomosci',correct:false},
+      {text:'Zamyka aktualny kanal i powraca do poprzedniego',correct:false},
+    ],
+    explanation:'<strong>Ctrl+K</strong> = nawigacja blyskawiczna do dowolnego kanalu lub DM bez myszy. Inne: <strong>Ctrl+Shift+K</strong> (otworz DM), <strong>Alt+strzalki</strong> (poprzedni/nastepny kanal).',
+  },
+  meetings: {
+    icon:'M', name:'Efektywne spotkania', sub:'Facilitation', group:'prod',
+    label:'Efektywne spotkania',
+    question:'Co to jest "parking lot" podczas spotkania?',
+    options:[
+      {text:'Lista tematow offtopikowych do omowienia pozniej — zeby nie tracic czasu teraz',correct:true},
+      {text:'Specjalny czas na koncu spotkania na pytania i odpowiedzi',correct:false},
+      {text:'Przerwa miedzy blokami tematycznymi spotkania',correct:false},
+      {text:'Opcjonalna czesc spotkania dla chetnych uczestnikow',correct:false},
+    ],
+    explanation:'<strong>Parking lot</strong>: widoczna lista na boku. Gdy pojawia sie wazny ale offtopikowy temat — wpisz zamiast dryfowac. Na koncu: ustal wlasciciela i termin dla kazdego tematu.',
+  },
+  gmail: {
+    icon:'G', name:'Gmail pro tipy', sub:'Filtry & skroty', group:'prod',
+    label:'Gmail pro tipy',
+    question:'Co robi filtr "has:attachment larger:10M" w Gmail?',
+    options:[
+      {text:'Znajduje emaile z zalacznikiem wiekszym niz 10 MB',correct:true},
+      {text:'Szuka maili z ponad 10 milionami znakow w tresci',correct:false},
+      {text:'Filtruje emaile od adresow z ponad 10 MB historii',correct:false},
+      {text:'Blad — Gmail nie obsluguje filtrowania po rozmiarze',correct:false},
+    ],
+    explanation:'Gmail search operators: <strong>has:attachment</strong>, <strong>larger:10M</strong>, <strong>from:ktos@firma.pl</strong>, <strong>before:2024/1/1</strong>, <strong>is:unread</strong>. Kombinuj zeby szybko zwolnic miejsce w skrzynce.',
+  },
+  feedback: {
+    icon:'F', name:'Model feedbacku SBI', sub:'Komunikacja', group:'soft',
+    label:'Model feedbacku SBI',
+    question:'Co oznaczaja litery SBI w modelu dawania feedbacku?',
+    options:[
+      {text:'Situation → Behavior → Impact',correct:true},
+      {text:'Skill → Balance → Improvement',correct:false},
+      {text:'Strengths → Blind spots → Initiatives',correct:false},
+      {text:'Start → Build → Iterate',correct:false},
+    ],
+    explanation:'<strong>S</strong>ytuacja: "W piatek na prezentacji..." <strong>B</strong>ehaviour: "...przerwales mi trzykrotnie..." <strong>I</strong>mpact: "...co sprawilo ze poczulam sie podwazana." SBI opisuje zachowanie, nie charakter — latwiejszy do przyjecia.',
+  },
+  remote_work: {
+    icon:'R', name:'Praca zdalna', sub:'Komunikacja async', group:'soft',
+    label:'Praca zdalna',
+    question:'Co to jest "asynchronous communication"?',
+    options:[
+      {text:'Komunikacja bez oczekiwania natychmiastowej odpowiedzi — email, Loom, Notion',correct:true},
+      {text:'Komunikacja przez narzedzia cyfrowe zamiast face-to-face',correct:false},
+      {text:'Odpowiedz na wiadomosc w przeciagu 24 godzin',correct:false},
+      {text:'Nagrywanie spotkan do pozniejszego obejrzenia',correct:false},
+    ],
+    explanation:'Async > sync dla pracy distributed i deep work. Zasady: pisz wyczerpujaco, ustal normy odpowiedzi (np. 4h), dokumentuj decyzje. GitLab cala firme prowadzi async.',
+  },
+  networking: {
+    icon:'N', name:'Networking', sub:'Budowanie relacji', group:'soft',
+    label:'Networking',
+    question:'Co to sa "weak ties" wg socjologa Marka Granovettera?',
+    options:[
+      {text:'Luzne znajomosci — paradoksalnie daja dostep do wiecej nowych informacji i szans',correct:true},
+      {text:'Slabe relacje zawodowe ktore nalezy przeksztalcic w silne',correct:false},
+      {text:'Kontakty z innych branzy nieprzydatne w karierze',correct:false},
+      {text:'Relacje jednokierunkowe — Ty pomagasz, ale nie otrzymujesz zwrotu',correct:false},
+    ],
+    explanation:'Badanie Granovettera (1973): wiekszosc ofert pracy pochodzi przez znajomych znajomych (weak ties). Bliscy (strong ties) obracaja sie w tym samym srodowisku — maja te same informacje co Ty.',
+  },
+  prezentacje: {
+    icon:'P', name:'Prezentacje & pitch', sub:'Public speaking', group:'soft',
+    label:'Prezentacje i Pitch',
+    question:'Co to jest zasada "10-20-30" Guy Kawasakiego?',
+    options:[
+      {text:'Maksymalnie 10 slajdow, 20 minut, minimum 30pt czcionka',correct:true},
+      {text:'10% slajdow z danymi, 20% z grafika, 30% z trescia tekstowa',correct:false},
+      {text:'Slajdy: 10 sekund na czytanie, 20 slow, 30% powierzchni na wizualy',correct:false},
+      {text:'Regula trzech: 10 minut uwagi, 20 slow per slajd, 30 sekund intro',correct:false},
+    ],
+    explanation:'<strong>10 slajdow</strong>: Problem, Rozwiazanie, Biznes, Technologia, Marketing, Konkurencja, Zespol, Projekcje, Status, CTA. <strong>20 minut</strong>: reszta na pytania. <strong>30pt font</strong>: mniej = za duzo tekstu.',
+  },
+  leadership: {
+    icon:'L', name:'Leadership', sub:'Style i modele', group:'soft',
+    label:'Leadership',
+    question:'Co to jest "servant leadership"?',
+    options:[
+      {text:'Lider priorytetyzuje potrzeby zespolu i usuwa przeszkody zamiast kontrolowac',correct:true},
+      {text:'Styl zarzadzania gdzie zespol wybiera lidera demokratycznie',correct:false},
+      {text:'Lider wykonuje zadania razem z zespolem jako rowny pracownik',correct:false},
+      {text:'Model przywodztwa oparty na nagrodach i karach',correct:false},
+    ],
+    explanation:'Termin Roberta Greenleafa (1970): lider jest "po to zeby sluzyc". Praktycznie: pyta "Czego potrzebujesz?", usuwa blokery, developuje zespol. Wyzsze zaangazowanie i retencja w takich teamach.',
+  },
+};
+
+let currentCat = null;
+let timerInterval = null;
+let elapsed = 0;
+let answered = false;
+let activeFilter = 'all';
+const MAX_SECONDS = 60;
+
+function init() {
+  buildFilterRow();
+  buildGrid();
+  updateCount();
+}
+
+function buildFilterRow() {
+  const row = document.getElementById('filter-row');
+  row.innerHTML = '<button class="filter-btn active" data-group="all" onclick="setFilter(\'all\')">Wszystkie</button>';
+  Object.entries(GROUPS).forEach(([key, label]) => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.dataset.group = key;
+    btn.textContent = label;
+    btn.onclick = () => setFilter(key);
+    row.appendChild(btn);
+  });
+}
+
+function buildGrid() {
+  const grid = document.getElementById('categories-grid');
+  grid.innerHTML = '';
+  Object.entries(RIDDLES).forEach(([key, r]) => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.dataset.key = key;
+    btn.dataset.group = r.group;
+    btn.dataset.name = (r.name + ' ' + r.sub + ' ' + key).toLowerCase();
+    btn.innerHTML = `
+      <div class="icon">${r.icon}</div>
+      <div class="cat-name">${r.name}</div>
+      <div class="cat-sub">${r.sub}</div>
+      <div class="cat-group">${GROUPS[r.group]}</div>`;
+    btn.onclick = () => startQuiz(key);
+    grid.appendChild(btn);
+  });
+}
+
+function setFilter(group) {
+  activeFilter = group;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.group === group));
+  filterCategories();
+}
+
+function filterCategories() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    const matchGroup = activeFilter === 'all' || btn.dataset.group === activeFilter;
+    const matchSearch = !q || btn.dataset.name.includes(q);
+    const show = matchGroup && matchSearch;
+    btn.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  updateCount(visible);
+  const old = document.getElementById('no-results');
+  if (old) old.remove();
+  if (visible === 0) {
+    const el = document.createElement('div');
+    el.id = 'no-results';
+    el.className = 'no-results';
+    el.textContent = 'Brak kategorii dla tego wyszukiwania';
+    document.getElementById('categories-grid').after(el);
+  }
+}
+
+function updateCount(n) {
+  const count = n !== undefined ? n : Object.keys(RIDDLES).length;
+  document.getElementById('cat-count').textContent = count + ' kategorii';
+}
+
+function startRandom() {
+  const keys = Object.keys(RIDDLES);
+  startQuiz(keys[Math.floor(Math.random() * keys.length)]);
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function startQuiz(cat) {
+  currentCat = cat;
+  answered = false;
+  elapsed = 0;
+  const r = RIDDLES[cat];
+  document.getElementById('quiz-cat-label').textContent = r.label;
+  document.getElementById('riddle-question').textContent = r.question;
+  const codeEl = document.getElementById('riddle-code');
+  if (r.code) { codeEl.textContent = r.code; codeEl.style.display = 'block'; }
+  else { codeEl.style.display = 'none'; }
+  const opts = [...r.options].sort(() => Math.random() - .5);
+  const tags = ['A','B','C','D'];
+  const list = document.getElementById('options-list');
+  list.innerHTML = '';
+  opts.forEach((o, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.innerHTML = '<span class="opt-tag">' + tags[i] + '</span>' + o.text;
+    btn.onclick = () => pick(btn, o.correct, r.explanation);
+    list.appendChild(btn);
+  });
+  document.getElementById('explanation').classList.remove('show');
+  document.getElementById('explanation').innerHTML = '';
+  show('screen-quiz');
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  elapsed = 0;
+  updateTimerUI(0);
+  timerInterval = setInterval(() => {
+    elapsed++;
+    updateTimerUI(elapsed);
+    if (elapsed >= MAX_SECONDS && !answered) {
+      clearInterval(timerInterval);
+      showResult(false);
+    }
+  }, 1000);
+}
+
+function updateTimerUI(secs) {
+  document.getElementById('timer-text').textContent = secs;
+  const circle = document.getElementById('timer-circle');
+  const pct = Math.min(secs / MAX_SECONDS, 1);
+  circle.style.strokeDashoffset = 125.6 * pct;
+  circle.style.stroke = pct < .4 ? '#6c63ff' : pct < .7 ? '#f5a623' : '#ff6584';
+}
+
+function pick(btn, correct, explanation) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  document.querySelectorAll('.opt-btn').forEach(b => { b.disabled = true; });
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    const correctText = RIDDLES[currentCat].options.find(o => o.correct).text;
+    document.querySelectorAll('.opt-btn').forEach(b => {
+      if (b.textContent.includes(correctText)) b.classList.add('correct');
+    });
+  }
+  const expEl = document.getElementById('explanation');
+  expEl.innerHTML = explanation;
+  expEl.classList.add('show');
+  setTimeout(() => showResult(correct), 1600);
+}
+
+function calcScore(secs, correct) {
+  if (!correct) return 0;
+  return Math.max(10, Math.round(100 - (secs / MAX_SECONDS) * 90));
+}
+
+function showResult(correct) {
+  const score = calcScore(elapsed, correct);
+  document.getElementById('score-display').textContent = score;
+  const arc = document.getElementById('score-arc');
+  arc.style.stroke = correct ? (score >= 70 ? '#43e97b' : '#f5a623') : '#ff6584';
+  setTimeout(() => { arc.style.strokeDashoffset = 314.16 * (1 - score / 100); }, 100);
+  document.getElementById('res-time').textContent = elapsed + 's';
+  document.getElementById('res-correct').textContent = correct ? 'Dobra' : 'Bledna';
+  let v, vs;
+  if (!correct)       { v = 'Nie tym razem';          vs = 'Sprawdz wyjasnienie i sprobuj ponownie.'; }
+  else if (score>=90) { v = 'Blyskawica!';             vs = 'Odpowiedziales w rekordowym czasie. Mistrz.'; }
+  else if (score>=70) { v = 'Szybko!';                 vs = 'Bardzo dobry wynik. Znasz sie na rzeczy.'; }
+  else if (score>=50) { v = 'Niezle';                  vs = 'Dobra odpowiedz, ale nastepnym razem szybciej!'; }
+  else                { v = 'Powoli ale skutecznie';   vs = 'Poprawna odpowiedz — im szybciej, tym wyzszy wynik.'; }
+  document.getElementById('verdict-text').textContent = v;
+  document.getElementById('verdict-sub').textContent = vs;
+  show('screen-result');
+}
+
+function backHome() { clearInterval(timerInterval); show('screen-home'); }
+function retryQuiz() { startQuiz(currentCat); }
+
+function shareResult() {
+  const score = document.getElementById('score-display').textContent;
+  const cat = RIDDLES[currentCat] ? RIDDLES[currentCat].label : '';
+  const text = 'Zdobylem ' + score + ' punktow w kategorii ' + cat + ' na QuizFlow! Pobij moj wynik!';
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.share-btn');
+      btn.innerHTML = '<span>OK</span> Skopiowano!';
+      setTimeout(() => { btn.innerHTML = '<span>Link</span> Skopiuj wynik'; }, 2000);
+    }).catch(() => alert(text));
+  } else { alert(text); }
+}
+
+init();
+</script>
+</body>
+</html>
