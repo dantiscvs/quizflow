@@ -111,6 +111,48 @@
   .anim-pop { animation: pop .3s ease; }
   .no-results { color: var(--muted); text-align: center; padding: 32px 0; font-size: 14px; }
 
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+    z-index: 100; align-items: center; justify-content: center; padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 28px 24px;
+    width: 100%; max-width: 420px;
+    display: flex; flex-direction: column; gap: 16px;
+    animation: pop .25s ease;
+  }
+  .modal h2 { font-size: 18px; text-align: center; }
+  .modal p  { color: var(--muted); font-size: 13px; text-align: center; line-height: 1.5; }
+  .text-input {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-size: 15px; outline: none; text-align: center;
+    transition: border-color .2s;
+  }
+  .text-input:focus { border-color: var(--accent); }
+  .text-input::placeholder { color: var(--muted); }
+
+  /* ── LEADERBOARD ── */
+  .lb-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 13px;
+  }
+  .lb-rank { font-size: 16px; width: 28px; text-align: center; flex-shrink: 0; }
+  .lb-name { font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-score { font-weight: 800; color: var(--accent); font-size: 15px; }
+  .lb-meta  { font-size: 11px; color: var(--muted); }
+  .lb-cat   { font-size: 10px; color: var(--muted); background: var(--border); border-radius: 4px; padding: 2px 6px; }
+  .lb-empty { color: var(--muted); text-align: center; padding: 24px 0; font-size: 14px; }
+  .lb-tabs  { display: flex; gap: 8px; }
+  .lb-tab   { flex: 1; padding: 9px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--card); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all .15s; }
+  .lb-tab.active { border-color: var(--accent); color: var(--accent); background: #6c63ff15; }
+
   @media(max-width:420px){
     .categories { grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); }
     .result-detail { gap: 10px; }
@@ -126,7 +168,10 @@
     <h1>Jak dobrze to znasz?</h1>
     <p class="subtitle" style="margin-top:8px">Jedna zagadka. Licznik startuje. Im szybciej — tym lepiej.</p>
   </div>
-  <button class="random-btn" onclick="startRandom()">🎲 Losowa zagadka</button>
+  <div style="display:flex;gap:10px">
+    <button class="random-btn" style="flex:1" onclick="startRandom()">🎲 Losowa zagadka</button>
+    <button class="random-btn" style="flex:0;background:var(--card);border:1.5px solid var(--border);color:var(--text)" onclick="goLeaderboard()">🏆</button>
+  </div>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input class="search-input" id="search-input" type="text" placeholder="Szukaj kategorii..." oninput="filterCategories()">
@@ -181,9 +226,40 @@
     <div class="action-row" style="margin-top:-6px">
       <button class="btn btn-ghost" onclick="startRandom()" style="flex:1">Losowa zagadka</button>
     </div>
-    <button class="share-btn" onclick="shareResult()"><span>Link</span> Skopiuj wynik</button>
+    <button class="share-btn" onclick="shareResult()">📸 Pobierz grafikę z wynikiem</button>
+    <button class="share-btn" style="margin-top:-4px" onclick="openNameModal()">🏆 Zapisz wynik w rankingu</button>
+    <button class="share-btn" style="margin-top:-4px" onclick="show('screen-leaderboard')">📋 Zobacz ranking</button>
   </div>
 </div>
+
+<!-- ══════════ LEADERBOARD ══════════ -->
+<div id="screen-leaderboard" class="screen">
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="btn btn-ghost" style="flex:0;padding:10px 14px" onclick="show('screen-home')">←</button>
+    <h1 style="text-align:left;font-size:20px">🏆 Ranking</h1>
+  </div>
+  <div class="lb-tabs">
+    <button class="lb-tab active" onclick="loadLeaderboard('all',this)">Wszyscy</button>
+    <button class="lb-tab" onclick="loadLeaderboard('week',this)">Ten tydzień</button>
+    <button class="lb-tab" onclick="loadLeaderboard('today',this)">Dzisiaj</button>
+  </div>
+  <div id="lb-list"><div class="lb-empty">Ładowanie...</div></div>
+</div>
+
+<!-- ══════════ MODAL — IMIĘ ══════════ -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal">
+    <h2>🏆 Zapisz swój wynik</h2>
+    <p>Twój wynik trafi do publicznego rankingu.<br>Wpisz imię lub nick (widoczne publicznie).</p>
+    <input class="text-input" id="player-name" type="text" maxlength="30" placeholder="Twoje imię / nick" />
+    <button class="btn btn-primary" onclick="submitScore()">Zapisz w rankingu</button>
+    <button class="btn btn-ghost" onclick="closeNameModal()">Anuluj</button>
+    <p id="modal-status" style="min-height:18px;font-size:12px;color:var(--green)"></p>
+  </div>
+</div>
+
+<!-- hidden canvas for image export -->
+<canvas id="share-canvas" style="display:none" width="600" height="340"></canvas>
 
 <script>
 const GROUPS = {
@@ -1425,7 +1501,7 @@ function pick(btn, correct, explanation) {
   const expEl = document.getElementById('explanation');
   expEl.innerHTML = explanation;
   expEl.classList.add('show');
-  setTimeout(() => showResult(correct), 1600);
+  setTimeout(() => showResult(correct), 3500);
 }
 
 function calcScore(secs, correct) {
@@ -1455,18 +1531,221 @@ function showResult(correct) {
 function backHome() { clearInterval(timerInterval); show('screen-home'); }
 function retryQuiz() { startQuiz(currentCat); }
 
-function shareResult() {
-  const score = document.getElementById('score-display').textContent;
-  const cat = RIDDLES[currentCat] ? RIDDLES[currentCat].label : '';
-  const text = 'Zdobylem ' + score + ' punktow w kategorii ' + cat + ' na QuizFlow! Pobij moj wynik!';
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.querySelector('.share-btn');
-      btn.innerHTML = '<span>OK</span> Skopiowano!';
-      setTimeout(() => { btn.innerHTML = '<span>Link</span> Skopiuj wynik'; }, 2000);
-    }).catch(() => alert(text));
-  } else { alert(text); }
+/* ══ SUPABASE CONFIG ══
+   1. Idź na https://supabase.com → New project (darmowe)
+   2. SQL Editor → wklej i uruchom:
+      CREATE TABLE scores (
+        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        time_seconds INTEGER NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+      ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
+      CREATE POLICY "read all" ON scores FOR SELECT USING (true);
+      CREATE POLICY "insert all" ON scores FOR INSERT WITH CHECK (true);
+   3. Settings → API → wklej URL i anon key poniżej
+*/
+const SUPABASE_URL  = 'WKLEJ_URL';
+const SUPABASE_KEY  = 'WKLEJ_ANON_KEY';
+const sbReady = SUPABASE_URL !== 'WKLEJ_URL';
+
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || '',
+    },
+    ...opts,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return opts.method === 'POST' ? null : res.json();
 }
+
+/* ── NAME MODAL ── */
+let _lastScore = 0, _lastCorrect = false;
+
+function openNameModal() {
+  if (!sbReady) {
+    alert('Ranking nie jest jeszcze skonfigurowany.\nWłaściciel musi podpiąć bazę Supabase.');
+    return;
+  }
+  _lastScore = parseInt(document.getElementById('score-display').textContent) || 0;
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('name-modal').classList.add('open');
+  setTimeout(() => document.getElementById('player-name').focus(), 100);
+}
+
+function closeNameModal() {
+  document.getElementById('name-modal').classList.remove('open');
+}
+
+async function submitScore() {
+  const name = document.getElementById('player-name').value.trim();
+  if (!name) { document.getElementById('player-name').focus(); return; }
+  const status = document.getElementById('modal-status');
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Zapisuję...';
+  try {
+    await sbFetch('scores', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({
+        name,
+        category: RIDDLES[currentCat]?.label || currentCat,
+        score: _lastScore,
+        time_seconds: elapsed,
+      }),
+    });
+    status.style.color = 'var(--green)';
+    status.textContent = '✅ Zapisano! Możesz zobaczyć ranking.';
+    setTimeout(closeNameModal, 1800);
+  } catch(e) {
+    status.style.color = 'var(--accent2)';
+    status.textContent = 'Błąd zapisu. Sprawdź konfigurację Supabase.';
+  }
+}
+
+/* ── LEADERBOARD ── */
+async function loadLeaderboard(period = 'all', tabEl) {
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+
+  const listEl = document.getElementById('lb-list');
+  listEl.innerHTML = '<div class="lb-empty">Ładowanie...</div>';
+
+  if (!sbReady) {
+    listEl.innerHTML = '<div class="lb-empty">⚙️ Ranking wymaga konfiguracji Supabase.<br><br>Zajrzyj do kodu — sekcja SUPABASE CONFIG.</div>';
+    return;
+  }
+
+  try {
+    let url = 'scores?select=name,category,score,time_seconds,created_at&order=score.desc,time_seconds.asc&limit=50';
+    if (period === 'today') {
+      const d = new Date(); d.setHours(0,0,0,0);
+      url += '&created_at=gte.' + d.toISOString();
+    } else if (period === 'week') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      url += '&created_at=gte.' + d.toISOString();
+    }
+    const rows = await sbFetch(url);
+    if (!rows.length) { listEl.innerHTML = '<div class="lb-empty">Brak wyników w tym okresie.</div>'; return; }
+
+    const medals = ['🥇','🥈','🥉'];
+    listEl.innerHTML = rows.map((r, i) => {
+      const date = new Date(r.created_at).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit'});
+      return `<div class="lb-row">
+        <div class="lb-rank">${medals[i] || (i+1)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="lb-name">${esc(r.name)}</div>
+          <div class="lb-meta">${date} &nbsp;·&nbsp; ${r.time_seconds}s &nbsp;<span class="lb-cat">${esc(r.category)}</span></div>
+        </div>
+        <div class="lb-score">${r.score} pkt</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div class="lb-empty">Błąd połączenia z bazą.</div>';
+  }
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ── CANVAS SHARE IMAGE ── */
+function shareResult() {
+  const score = parseInt(document.getElementById('score-display').textContent) || 0;
+  const timeEl = document.getElementById('res-time').textContent;
+  const cat   = RIDDLES[currentCat]?.label || '';
+  const correct = document.getElementById('res-correct').textContent.includes('Dobra');
+  const verdict = document.getElementById('verdict-text').textContent;
+
+  const canvas = document.getElementById('share-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 600, H = 340;
+
+  // background
+  ctx.fillStyle = '#0f0f13';
+  ctx.fillRect(0, 0, W, H);
+
+  // accent bar top
+  const grd = ctx.createLinearGradient(0,0,W,0);
+  grd.addColorStop(0,'#6c63ff'); grd.addColorStop(1,'#ff6584');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, 4);
+
+  // card bg
+  ctx.fillStyle = '#1a1a22';
+  roundRect(ctx, 24, 24, W-48, H-48, 20);
+  ctx.fill();
+
+  // brand
+  ctx.fillStyle = '#6c63ff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.letterSpacing = '3px';
+  ctx.fillText('⚡ QUIZFLOW', 48, 62);
+  ctx.letterSpacing = '0px';
+
+  // category
+  ctx.fillStyle = '#888';
+  ctx.font = '13px sans-serif';
+  ctx.fillText(cat, 48, 86);
+
+  // score big
+  ctx.fillStyle = correct ? '#43e97b' : '#ff6584';
+  ctx.font = 'bold 80px sans-serif';
+  ctx.fillText(score, 48, 190);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '14px sans-serif';
+  ctx.fillText('punktów', 52, 213);
+
+  // verdict
+  ctx.fillStyle = '#f0f0f0';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(verdict, 48, 255);
+
+  // stats right
+  ctx.fillStyle = '#6c63ff';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(timeEl, W-48, 190);
+  ctx.fillStyle = '#888';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('czas', W-48, 213);
+
+  // url
+  ctx.fillStyle = '#444';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('dantiscvs.github.io/quizflow', W-48, 290);
+  ctx.textAlign = 'left';
+
+  // download
+  const link = document.createElement('a');
+  link.download = 'quizflow-wynik.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+/* ── LEADERBOARD link on home ── */
+function goLeaderboard() { loadLeaderboard('all'); show('screen-leaderboard'); }
+
+/* keyboard: Enter submits name */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('name-modal').classList.contains('open')) submitScore();
+  if (e.key === 'Escape' && document.getElementById('name-modal').classList.contains('open')) closeNameModal();
+});
 
 init();
 </script>
